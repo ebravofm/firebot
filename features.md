@@ -1,1 +1,2 @@
 - Persistencia con supabase a traves de url
+- Cookies para persistencia de thread_id
