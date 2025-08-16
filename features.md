@@ -1,0 +1,1 @@
+- Persistencia con supabase a traves de url
