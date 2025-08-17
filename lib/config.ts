@@ -1,48 +1,13 @@
 import { cookies } from 'next/headers';
 
-export function setThreadIdInBrowserCookies(threadId: string): void {
-  if (typeof window !== 'undefined') {
-    document.cookie = `thread_id=${threadId}; path=/; max-age=31536000`; // 1 año
-  }
-}
-
-export function getThreadIdFromBrowserCookies(): string | null {
-  if (typeof window !== 'undefined') {
-    const cookies = document.cookie.split(';');
-    const threadCookie = cookies.find(cookie => cookie.trim().startsWith('thread_id='));
-    if (threadCookie) {
-      return threadCookie.split('=')[1];
-    }
-  }
-  return null;
-}
-
-
-export async function getTokenFromCookies() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get('jwt')?.value || null;
-  console.log('Token from cookies:', token);
-  return token;
-}
-
-export async function getChatbotIdFromCookies() {
-  const cookieStore = await cookies();
-  const chatbotId = cookieStore.get('chatbot_id')?.value || null;
-  console.log('Chatbot ID from cookies:', chatbotId);
-  return chatbotId;
-}
-
-export function removeThreadIdFromBrowserCookies(): void {
-  if (typeof window !== 'undefined') {
-    document.cookie = 'thread_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-  }
-}
-
-
-// Configuración de entorno
+// ============================================================================
+// CONSTANTES DE ENTORNO
+// ============================================================================
 export const BACKEND_URL: string = process.env.BACKEND_URL || 'http://localhost:8080';
 
-// Tipos para la respuesta del backend
+// ============================================================================
+// TIPOS
+// ============================================================================
 export type ChatbotConfig = {
   id: number;
   workspace_id: number;
@@ -62,12 +27,56 @@ export type ChatbotConfig = {
   rag_collections: number[];
 };
 
-// Sistema de caché para la configuración del chatbot
+// ============================================================================
+// FUNCIONES DE COOKIES
+// ============================================================================
+export async function getTokenFromCookies() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get('jwt')?.value || null;
+  console.log('Token from cookies:', token);
+  return token;
+}
+
+export async function getChatbotIdFromCookies() {
+  const cookieStore = await cookies();
+  const chatbotId = cookieStore.get('chatbot_id')?.value || null;
+  console.log('Chatbot ID from cookies:', chatbotId);
+  return chatbotId;
+}
+
+export function setThreadIdInBrowserCookies(threadId: string): void {
+  if (typeof window !== 'undefined') {
+    document.cookie = `thread_id=${threadId}; path=/; max-age=31536000`; // 1 año
+  }
+}
+
+export function getThreadIdFromBrowserCookies(): string | null {
+  if (typeof window !== 'undefined') {
+    const cookies = document.cookie.split(';');
+    const threadCookie = cookies.find(cookie => cookie.trim().startsWith('thread_id='));
+    if (threadCookie) {
+      return threadCookie.split('=')[1];
+    }
+  }
+  return null;
+}
+
+export function removeThreadIdFromBrowserCookies(): void {
+  if (typeof window !== 'undefined') {
+    document.cookie = 'thread_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+  }
+}
+
+// ============================================================================
+// SISTEMA DE CACHÉ
+// ============================================================================
 let configCache: ChatbotConfig | null = null;
 let lastFetchTime = 0;
 const CACHE_TTL = 1000 * 60 * 5; // 5 minutos
 
-// Función para obtener la configuración del chatbot con caché
+// ============================================================================
+// FUNCIONES DE CONFIGURACIÓN DEL CHATBOT
+// ============================================================================
 export async function getChatbotConfig(): Promise<ChatbotConfig | null> {
   try {
     // Verificar caché
@@ -125,7 +134,6 @@ export async function getChatbotConfig(): Promise<ChatbotConfig | null> {
   }
 }
 
-// Función para limpiar el caché manualmente
 export function clearChatbotConfigCache(): void {
   configCache = null;
   lastFetchTime = 0;
