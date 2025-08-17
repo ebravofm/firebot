@@ -21,6 +21,7 @@ import { useChat } from '@ai-sdk/react'
 import type { UIMessage } from "ai";
 import { useAISDKRuntime } from "@assistant-ui/react-ai-sdk";
 import { ENV_CONFIG } from "@/lib/env";
+import { useEffect, useRef } from "react";
 
 export const Assistant = ({
   chatId,
@@ -37,6 +38,50 @@ export const Assistant = ({
 }) => {
   const chat = useChat({ id: chatId, messages: initialMessages });
   const runtime = useAISDKRuntime(chat);
+
+  // Simular un mensaje de streaming simple cuando el thread es nuevo
+  const welcomeStartedRef = useRef(false);
+
+  useEffect(() => {
+    const isNewThread = !initialMessages || initialMessages.length === 0;
+    if (!isNewThread || welcomeStartedRef.current) return;
+
+    welcomeStartedRef.current = true;
+
+    const simulateStreamingMessage = async (text: string) => {
+      const messageId = "welcome-message";
+      const tokens = text.split(" ");
+
+      // Crear el mensaje inicial vacío
+      chat.setMessages([
+        {
+          id: messageId,
+          role: "assistant",
+          parts: [{ type: "text", text: "" }],
+        },
+      ]);
+
+      // Rellenar progresivamente el contenido
+      for (let i = 0; i < tokens.length; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 80));
+        chat.setMessages((prev) =>
+          prev.map((m) =>
+            m.id === messageId
+              ? {
+                  ...m,
+                  parts: [
+                    { type: "text", text: tokens.slice(0, i + 1).join(" ") },
+                  ],
+                }
+              : m
+          )
+        );
+      }
+    };
+
+    simulateStreamingMessage("Hola! Puedo ayudarte con información sobre servicios, programas y actividades de la Municipalidad de Colina. ¿Hay algún tema específico que te interese, como ayudas sociales, trámites, o actividades comunitarias?");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chat.id]);
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
