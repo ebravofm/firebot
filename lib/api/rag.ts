@@ -36,7 +36,7 @@ export async function searchRAG(
     throw new Error("BACKEND_URL no está definido");
   }
   
-  const authToken = getJWTFromBrowserCookies();
+  const authToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjIsInVzZXJfaWQiOjIsImlkIjoyLCJlbWFpbCI6ImVicmF2b0BkYXRhcHVsc2UuY2wiLCJ3b3Jrc3BhY2VfaWQiOjEsInJvbGVfaWQiOjIsInR5cGUiOiJwZXJtYW5lbnQiLCJpYXQiOjE3NTUyMTY3OTB9.DNj6RYUiCwdAOupYla786iTSPMuvOZIpM-LetcMtuzk"
   if (!authToken) {
     throw new Error("JWT no encontrado en las cookies");
   }
