@@ -252,12 +252,14 @@ const AssistantMessage: FC = () => {
 
         {/* aui-assistant-message-content */}
         <div className="text-foreground col-span-2 col-start-2 row-start-1 ml-4 leading-7 break-words">
-          <MessagePrimitive.Content
-            components={{
-              Text: MarkdownText,
-              tools: { Fallback: ToolFallback },
-            }}
-          />
+                  <MessagePrimitive.Content
+          components={{
+            Text: MarkdownText,
+            ...(ENV_CONFIG.NEXT_PUBLIC_ENABLE_TOOL_FALLBACK && {
+              tools: { Fallback: ToolFallback }
+            })
+          }}
+        />
           <MessageError />
         </div>
 
