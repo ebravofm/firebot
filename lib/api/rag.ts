@@ -1,4 +1,5 @@
 import { BACKEND_URL, getJWTFromBrowserCookies } from "@/lib/config";
+import { cookies } from 'next/headers';
 
 // Constantes hardcodeadas para RAG
 export const DEFAULT_WORKSPACE_ID = 1;
@@ -29,6 +30,13 @@ export interface RAGSearchParams {
   response_format?: string;
 }
 
+export async function getTokenFromCookies() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get('jwt')?.value || null;
+  console.log('Token from cookies:', token);
+  return token;
+}
+
 export async function searchRAG(
   params: RAGSearchParams
 ): Promise<RAGSearchResponse> {
@@ -36,7 +44,7 @@ export async function searchRAG(
     throw new Error("BACKEND_URL no está definido");
   }
   
-  const authToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjIsInVzZXJfaWQiOjIsImlkIjoyLCJlbWFpbCI6ImVicmF2b0BkYXRhcHVsc2UuY2wiLCJ3b3Jrc3BhY2VfaWQiOjEsInJvbGVfaWQiOjIsInR5cGUiOiJwZXJtYW5lbnQiLCJpYXQiOjE3NTUyMTY3OTB9.DNj6RYUiCwdAOupYla786iTSPMuvOZIpM-LetcMtuzk"
+  const authToken = await getTokenFromCookies();
   if (!authToken) {
     throw new Error("JWT no encontrado en las cookies");
   }
