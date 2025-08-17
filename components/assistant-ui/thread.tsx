@@ -164,71 +164,63 @@ const Composer: FC<{ welcomeSuggestions: Array<{ label: string; title: string; a
         <ThreadWelcomeSuggestions welcomeSuggestions={welcomeSuggestions} />
       </ThreadPrimitive.Empty>
       {/* aui-composer-root */}
-      <ComposerPrimitive.Root className="focus-within::ring-offset-2 relative flex w-full flex-col rounded-2xl focus-within:ring-2 focus-within:ring-black dark:focus-within:ring-white">
+      <ComposerPrimitive.Root className="relative flex w-full flex-row rounded-2xl focus-within:outline-2 focus-within:outline-black dark:focus-within:outline-white focus-within:outline-offset-0 h-[50px]">
         {/* aui-composer-input */}
-        <ComposerPrimitive.Input
-          placeholder="Send a message..."
-          className={
-            "bg-muted border-border dark:border-muted-foreground/15 focus:outline-primary placeholder:text-muted-foreground max-h-[calc(50dvh)] min-h-16 w-full resize-none rounded-t-2xl border-x border-t px-4 pt-2 pb-3 text-base outline-none"
-          }
-          rows={1}
-          autoFocus
-          aria-label="Message input"
-        />
-        <ComposerAction />
+        <div className="relative flex-1">
+          <ComposerPrimitive.Input
+            placeholder="Send a message..."
+            className={
+              `bg-muted border-border dark:border-muted-foreground/15 focus:outline-primary placeholder:text-muted-foreground max-h-[calc(50dvh)] min-h-[50px] w-full resize-none rounded-2xl border pl-16 pr-20 py-3 text-base outline-none`
+            }
+            rows={1}
+            autoFocus
+            aria-label="Message input"
+          />
+          {/* aui-composer-attachment-button */}
+          <TooltipIconButton
+            tooltip="Attach file"
+            variant="ghost"
+            className="absolute left-4 top-1/2 -translate-y-1/2 hover:bg-foreground/10 dark:hover:bg-background/30 p-2 rounded-lg"
+            onClick={() => {
+              console.log("Attachment clicked - not implemented");
+            }}
+          >
+            <PlusIcon className="h-4 w-4" />
+          </TooltipIconButton>
+          
+          {/* aui-composer-send-button */}
+          <ThreadPrimitive.If running={false}>
+            <ComposerPrimitive.Send asChild>
+              <Button
+                type="submit"
+                variant="default"
+                className="absolute right-4 top-1/2 -translate-y-1/2 dark:border-muted-foreground/90 border-muted-foreground/60 hover:bg-primary/75 size-8 rounded-full border"
+                aria-label="Send message"
+              >
+                <ArrowUpIcon className="size-5" />
+              </Button>
+            </ComposerPrimitive.Send>
+          </ThreadPrimitive.If>
+
+          <ThreadPrimitive.If running>
+            <ComposerPrimitive.Cancel asChild>
+              <Button
+                type="button"
+                variant="default"
+                className="absolute right-4 top-1/2 -translate-y-1/2 dark:border-muted-foreground/90 border-muted-foreground/60 hover:bg-primary/75 size-8 rounded-full border"
+                aria-label="Stop generating"
+              >
+                <Square className="size-3.5 fill-white dark:size-4 dark:fill-black" />
+              </Button>
+            </ComposerPrimitive.Cancel>
+          </ThreadPrimitive.If>
+        </div>
       </ComposerPrimitive.Root>
     </div>
   );
 };
 
-const ComposerAction: FC = () => {
-  return (
-    // aui-composer-action-wrapper
-    <div className="bg-muted border-border dark:border-muted-foreground/15 relative flex items-center justify-between rounded-b-2xl border-x border-b p-2">
-      <TooltipIconButton
-        tooltip="Attach file"
-        variant="ghost"
-        // aui-composer-attachment-button
-        className="hover:bg-foreground/15 dark:hover:bg-background/50 scale-115 p-3.5"
-        onClick={() => {
-          console.log("Attachment clicked - not implemented");
-        }}
-      >
-        <PlusIcon />
-      </TooltipIconButton>
 
-      <ThreadPrimitive.If running={false}>
-        <ComposerPrimitive.Send asChild>
-          <Button
-            type="submit"
-            variant="default"
-            // aui-composer-send
-            className="dark:border-muted-foreground/90 border-muted-foreground/60 hover:bg-primary/75 size-8 rounded-full border"
-            aria-label="Send message"
-          >
-            {/* aui-composer-send-icon */}
-            <ArrowUpIcon className="size-5" />
-          </Button>
-        </ComposerPrimitive.Send>
-      </ThreadPrimitive.If>
-
-      <ThreadPrimitive.If running>
-        <ComposerPrimitive.Cancel asChild>
-          <Button
-            type="button"
-            variant="default"
-            // aui-composer-cancel
-            className="dark:border-muted-foreground/90 border-muted-foreground/60 hover:bg-primary/75 size-8 rounded-full border"
-            aria-label="Stop generating"
-          >
-            {/* aui-composer-cancel-icon */}
-            <Square className="size-3.5 fill-white dark:size-4 dark:fill-black" />
-          </Button>
-        </ComposerPrimitive.Cancel>
-      </ThreadPrimitive.If>
-    </div>
-  );
-};
 
 const MessageError: FC = () => {
   return (
