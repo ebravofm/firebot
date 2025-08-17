@@ -17,16 +17,6 @@ export function getThreadIdFromBrowserCookies(): string | null {
   return null;
 }
 
-export function getJWTFromBrowserCookies(): string | null {
-  if (typeof window !== 'undefined') {
-    const cookies = document.cookie.split(';');
-    const jwtCookie = cookies.find(cookie => cookie.trim().startsWith('jwt='));
-    if (jwtCookie) {
-      return jwtCookie.split('=')[1];
-    }
-  }
-  return null;
-}
 
 export async function getTokenFromCookies() {
   const cookieStore = await cookies();
@@ -35,22 +25,19 @@ export async function getTokenFromCookies() {
   return token;
 }
 
+export async function getChatbotIdFromCookies() {
+  const cookieStore = await cookies();
+  const chatbotId = cookieStore.get('chatbot_id')?.value || null;
+  console.log('Chatbot ID from cookies:', chatbotId);
+  return chatbotId;
+}
+
 export function removeThreadIdFromBrowserCookies(): void {
   if (typeof window !== 'undefined') {
     document.cookie = 'thread_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
   }
 }
 
-export function getChatbotIdFromBrowserCookies(): string | null {
-  if (typeof window !== 'undefined') {
-    const cookies = document.cookie.split(';');
-    const chatbotCookie = cookies.find(cookie => cookie.trim().startsWith('chatbot_id='));
-    if (chatbotCookie) {
-      return chatbotCookie.split('=')[1];
-    }
-  }
-  return null;
-}
 
 // Configuración de entorno
 export const BACKEND_URL: string = process.env.BACKEND_URL || 'http://localhost:8080';
@@ -92,7 +79,7 @@ export async function getChatbotConfig(): Promise<ChatbotConfig | null> {
 
     // Obtener JWT y chatbot_id de las cookies
     const jwtToken = await getTokenFromCookies();
-    const chatbotId = getChatbotIdFromBrowserCookies();
+    const chatbotId = await getChatbotIdFromCookies();
     
     console.log('getChatbotConfig: jwt:', !!jwtToken, 'chatbot_id:', chatbotId);
     
@@ -102,10 +89,13 @@ export async function getChatbotConfig(): Promise<ChatbotConfig | null> {
       return null;
     }
 
-    // Usar chatbot_id de cookies o fallback a 1
-    const finalChatbotId = chatbotId || 1;
+    // Verificar que tenemos chatbot_id
+    if (!chatbotId) {
+      console.log('getChatbotConfig: error - no chatbot_id');
+      return null;
+    }
 
-    const url = `${BACKEND_URL}/chatbot-config/${finalChatbotId}`;
+    const url = `${BACKEND_URL}/chatbot-config/${chatbotId}`;
     console.log('getChatbotConfig: llamando a:', url);
     
     const response = await fetch(url, {

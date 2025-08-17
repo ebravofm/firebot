@@ -1,4 +1,4 @@
-import { BACKEND_URL, getJWTFromBrowserCookies, getChatbotConfig, getTokenFromCookies } from "@/lib/config";
+import { BACKEND_URL, getChatbotConfig, getTokenFromCookies } from "@/lib/config";
 
 export interface RAGSearchResult {
   title: string;
