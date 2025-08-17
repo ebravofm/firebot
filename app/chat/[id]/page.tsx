@@ -1,4 +1,4 @@
-import { loadChat } from "@/util/chat-store";
+import { loadChat } from "@/lib/chat-store";
 import { Assistant } from "@/app/assistant";
 import { SetThreadCookie } from "../../../components/set-thread-cookie";
 

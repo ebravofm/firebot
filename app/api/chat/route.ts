@@ -1,5 +1,5 @@
 import { UIMessage, createIdGenerator } from "ai";
-import { saveChat } from "@/util/chat-store";
+import { saveChat } from "@/lib/chat-store";
 import { streamReactAgent } from "@/lib/agents/react-agent";
 
 export async function POST(req: Request) {
