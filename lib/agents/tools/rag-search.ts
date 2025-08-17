@@ -1,44 +1,46 @@
 import { tool } from "ai";
 import { z } from "zod";
+import { searchRAG, DEFAULT_WORKSPACE_ID, DEFAULT_COLLECTION_IDS } from "@/lib/api/rag";
 
 export function createRagSearchTool({ maxResults = 3 }: { maxResults?: number } = {}) {
   return tool({
     description:
-      "Busca documentos relevantes mediante RAG. Devuelve resultados con título, contenido y similaridad.",
-    inputSchema: z.object({ query: z.string().min(1, "query requerida") }),
-    // Hardcodeamos resultados de ejemplo por ahora
+      "Search relevant documents via RAG. Returns a plain-text list with title, content, and similarity.",
+    inputSchema: z.object({ query: z.string().min(1, "query required") }),
     execute: async ({ query }: { query: string }) => {
-      const results = [
-        {
-          titulo: "Documento 1",
-          contenido: "Contenido simulado relacionado con: " + query,
-          similaridad: 0.91,
-        },
-        {
-          titulo: "Documento 2",
-          contenido: "Otro contenido simulado sobre: " + query,
-          similaridad: 0.84,
-        },
-        {
-          titulo: "Documento 3",
-          contenido: "Más contenido simulado referente a: " + query,
-          similaridad: 0.77,
-        },
-      ].slice(0, maxResults);
+      try {
+        const response = await searchRAG({
+          query,
+          top_k: maxResults,
+          workspace_id: DEFAULT_WORKSPACE_ID,
+          collection_ids: DEFAULT_COLLECTION_IDS,
+        });
 
-      // Devolvemos una estructura simple como texto
-      const formatted = results
-        .map((r, idx) => {
-          return (
-            `documento ${idx + 1}:\n` +
-            `titulo: ${r.titulo}\n` +
-            `contenido: ${r.contenido}\n` +
-            `similaridad: ${r.similaridad}`
-          );
-        })
-        .join("\n\n");
+        const results = response.data || [];
 
-      return formatted;
+        if (results.length === 0) {
+          return `Search results for: "${query}"\n\nNo results found.`;
+        }
+
+        const lines: string[] = [];
+        lines.push(`Search results for: "${query}"`);
+        lines.push("");
+
+        for (let i = 0; i < results.length; i++) {
+          const r = results[i];
+          const similarity = typeof r.similarity === "number" ? r.similarity.toFixed(2) : String(r.similarity);
+          lines.push(`${i + 1}. ${r.title} (similarity: ${similarity})`);
+          lines.push(`   ${r.content}`);
+          if (i < results.length - 1) {
+            lines.push("");
+          }
+        }
+
+        return lines.join("\n");
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Unknown error";
+        return `RAG search failed: ${message}`;
+      }
     },
   });
 }

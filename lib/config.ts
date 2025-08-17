@@ -15,6 +15,17 @@ export function getThreadIdFromBrowserCookies(): string | null {
   return null;
 }
 
+export function getJWTFromBrowserCookies(): string | null {
+  if (typeof window !== 'undefined') {
+    const cookies = document.cookie.split(';');
+    const jwtCookie = cookies.find(cookie => cookie.trim().startsWith('jwt='));
+    if (jwtCookie) {
+      return jwtCookie.split('=')[1];
+    }
+  }
+  return null;
+}
+
 export function removeThreadIdFromBrowserCookies(): void {
   if (typeof window !== 'undefined') {
     document.cookie = 'thread_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';

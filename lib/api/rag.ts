@@ -1,4 +1,8 @@
-import { BACKEND_URL } from "@/lib/config";
+import { BACKEND_URL, getJWTFromBrowserCookies } from "@/lib/config";
+
+// Constantes hardcodeadas para RAG
+export const DEFAULT_WORKSPACE_ID = 1;
+export const DEFAULT_COLLECTION_IDS = [1];
 
 export interface RAGSearchResult {
   title: string;
@@ -26,14 +30,15 @@ export interface RAGSearchParams {
 }
 
 export async function searchRAG(
-  params: RAGSearchParams,
-  authToken: string
+  params: RAGSearchParams
 ): Promise<RAGSearchResponse> {
   if (!BACKEND_URL) {
     throw new Error("BACKEND_URL no está definido");
   }
+  
+  const authToken = getJWTFromBrowserCookies();
   if (!authToken) {
-    throw new Error("authToken es requerido");
+    throw new Error("JWT no encontrado en las cookies");
   }
 
   const body = {
@@ -41,6 +46,8 @@ export async function searchRAG(
     similarity_threshold: 0,
     response_format: "minimal",
     ...params,
+    workspace_id: DEFAULT_WORKSPACE_ID,
+    collection_ids: DEFAULT_COLLECTION_IDS,
   };
 
   const response = await fetch(`${BACKEND_URL}/rag/search`, {
