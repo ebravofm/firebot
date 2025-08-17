@@ -6,8 +6,8 @@ export async function POST(req: Request) {
   const body = await req.json();
   const messages: UIMessage[] = body.messages ?? [];
   const chatId: string | undefined = body.chatId ?? body.id;
-
-  const result = streamReactAgent({ messages });
+  const agentParams = { messages };
+  const result = streamReactAgent({ messages: agentParams.messages });
 
   return result.toUIMessageStreamResponse({
     originalMessages: messages,

@@ -15,6 +15,12 @@ function extractTextContent(message: UIMessage): string {
   return textParts.map(part => (part as any).text).join(' ');
 }
 
+function normalizeMessageSignature(message: UIMessage): string {
+  const role = message.role ?? "";
+  const text = extractTextContent(message).trim();
+  return `${role}|${text}`;
+}
+
 export async function createChat(): Promise<string> {
   const { data, error } = await supabase
     .from("threads")
@@ -57,8 +63,24 @@ export async function loadChat(id: string): Promise<UIMessage[]> {
     parts: d.parts,
   })) as UIMessage[];
 
-  console.log(`[loadChat] Processed messages:`, messages);
-  return messages;
+  // Filtrar y desduplicar: solo roles relevantes y texto no vacío
+  const relevant = messages.filter((m) => {
+    const isRelevantRole = m.role === 'user' || m.role === 'assistant';
+    if (!isRelevantRole) return false;
+    const text = extractTextContent(m).trim();
+    return text.length > 0;
+  });
+
+  const seenSignatures = new Set<string>();
+  const deduped = relevant.filter((m) => {
+    const signature = normalizeMessageSignature(m);
+    if (seenSignatures.has(signature)) return false;
+    seenSignatures.add(signature);
+    return true;
+  });
+
+  console.log(`[loadChat] Processed messages (deduped):`, deduped);
+  return deduped;
 }
 
 export async function saveChat({
@@ -74,15 +96,44 @@ export async function saveChat({
   // Obtener mensajes existentes para evitar duplicados
   const existingMessages = await loadChat(chatId);
   console.log(`[saveChat] Existing messages in DB:`, existingMessages.length);
-  
-  // Filtrar solo mensajes nuevos (que no están en la BD)
-  const newMessages = messages.filter(msg => 
-    !existingMessages.some(existing => 
-      existing.id === msg.id
-    )
+
+  // Construir firmas normalizadas de los mensajes existentes (por rol + texto)
+  const existingSignatures = new Set(
+    existingMessages
+      .filter(m => m.role === 'user' || m.role === 'assistant')
+      .map(normalizeMessageSignature)
   );
-  
-  console.log(`[saveChat] New messages to save:`, newMessages.length);
+
+  // 1) Deduplicar por id dentro del lote recibido
+  const seenIds = new Set<string>();
+  const uniqueById = messages.filter((m) => {
+    if (!m.id) return true;
+    if (seenIds.has(m.id)) return false;
+    seenIds.add(m.id);
+    return true;
+  });
+
+  // 2) Filtrar solo mensajes relevantes (user/assistant) y con texto no vacío
+  const relevant = uniqueById.filter((m) => {
+    const isRelevantRole = m.role === 'user' || m.role === 'assistant';
+    if (!isRelevantRole) return false;
+    const text = extractTextContent(m).trim();
+    return text.length > 0;
+  });
+
+  // 3) Deduplicar dentro del mismo lote por firma (rol + texto)
+  const seenSignaturesInBatch = new Set<string>();
+  const uniqueInBatch = relevant.filter((m) => {
+    const signature = normalizeMessageSignature(m);
+    if (seenSignaturesInBatch.has(signature)) return false;
+    seenSignaturesInBatch.add(signature);
+    return true;
+  });
+
+  // 4) Excluir los que ya existen en la BD por firma (evita duplicados por steps/herramientas)
+  const newMessages = uniqueInBatch.filter((m) => !existingSignatures.has(normalizeMessageSignature(m)));
+
+  console.log(`[saveChat] New messages to save after filtering:`, newMessages.length);
 
   if (newMessages.length === 0) {
     console.log(`[saveChat] No new messages to save`);
