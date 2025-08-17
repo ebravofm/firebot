@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils";
 import { MarkdownText } from "./markdown-text";
 import { ToolFallback } from "./tool-fallback";
 import { ENV_CONFIG } from "@/lib/env";
+import { RagSearchToolUI } from "./rag-search-ui";
 
 export const Thread: FC<{ 
   welcomeTitle: string; 
@@ -252,14 +253,19 @@ const AssistantMessage: FC = () => {
 
         {/* aui-assistant-message-content */}
         <div className="text-foreground col-span-2 col-start-2 row-start-1 ml-4 leading-7 break-words">
-                  <MessagePrimitive.Content
-          components={{
-            Text: MarkdownText,
-            ...(ENV_CONFIG.NEXT_PUBLIC_ENABLE_TOOL_FALLBACK && {
-              tools: { Fallback: ToolFallback }
-            })
-          }}
-        />
+          <MessagePrimitive.Content
+            components={{
+              Text: MarkdownText,
+              tools: {
+                by_name: {
+                  rag_search: RagSearchToolUI,
+                },
+                ...(ENV_CONFIG.NEXT_PUBLIC_ENABLE_TOOL_FALLBACK
+                  ? { Fallback: ToolFallback }
+                  : {}),
+              },
+            }}
+          />
           <MessageError />
         </div>
 
