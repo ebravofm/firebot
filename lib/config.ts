@@ -20,3 +20,6 @@ export function removeThreadIdFromBrowserCookies(): void {
     document.cookie = 'thread_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
   }
 }
+
+// Configuración de entorno
+export const BACKEND_URL: string = process.env.BACKEND_URL || 'http://localhost:8080';
