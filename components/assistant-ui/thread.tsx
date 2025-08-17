@@ -261,7 +261,9 @@ const AssistantMessage: FC = () => {
           <MessageError />
         </div>
 
-        <AssistantActionBar />
+        {ENV_CONFIG.NEXT_PUBLIC_SHOW_ASSISTANT_ACTION_BAR && (
+          <AssistantActionBar />
+        )}
 
         {/* aui-assistant-branch-picker */}
         <BranchPicker className="col-start-2 row-start-2 mr-2 -ml-2" />
