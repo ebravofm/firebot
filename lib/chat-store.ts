@@ -1,18 +1,18 @@
-import { generateId, type UIMessage } from "ai";
+import { type UIMessage } from "ai";
 import { supabase } from "../lib/supabase-client";
 import { setThreadIdInBrowserCookies } from "../lib/config";
 
 interface DatabaseMessage {
   id: string;
   role: string;
-  content: any;
-  parts: any[];
+  content: string;
+  parts: unknown[];
 }
 
 // Función helper para extraer el contenido de texto de un UIMessage
 function extractTextContent(message: UIMessage): string {
   const textParts = message.parts.filter(part => part.type === 'text');
-  return textParts.map(part => (part as any).text).join(' ');
+  return textParts.map(part => (part as { text: string }).text).join(' ');
 }
 
 function normalizeMessageSignature(message: UIMessage): string {
