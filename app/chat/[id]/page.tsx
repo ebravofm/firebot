@@ -27,6 +27,7 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
         welcomeTitle={firstLine}
         welcomeSubtitle={remainingLines}
         welcomeSuggestions={welcomeSuggestions}
+        openingMessage={chatbotConfig?.initial_message}
       />
     </>
   );

@@ -29,12 +29,14 @@ export const Assistant = ({
   welcomeTitle,
   welcomeSubtitle,
   welcomeSuggestions,
+  openingMessage,
 }: {
   chatId?: string;
   initialMessages?: UIMessage[];
   welcomeTitle: string;
   welcomeSubtitle: string;
   welcomeSuggestions: Array<{ label: string; title: string; action: string }>;
+  openingMessage?: string;
 }) => {
   const chat = useChat({ id: chatId, messages: initialMessages });
   const runtime = useAISDKRuntime(chat);
@@ -44,12 +46,12 @@ export const Assistant = ({
 
   useEffect(() => {
     const isNewThread = !initialMessages || initialMessages.length === 0;
-    if (!isNewThread || welcomeStartedRef.current) return;
+    if (!isNewThread || welcomeStartedRef.current || !openingMessage?.trim()) return;
 
     welcomeStartedRef.current = true;
 
     const simulateStreamingMessage = async (text: string) => {
-      const messageId = "welcome-message";
+      const messageId = "opening-message";
       const tokens = text.split(" ");
 
       // Crear el mensaje inicial vacío
@@ -62,7 +64,7 @@ export const Assistant = ({
       ]);
 
       // Rellenar progresivamente el contenido
-      for (let i = 0; i < tokens.length; i++) {
+      for (let i = 0; i < tokens.length; i += 2) {
         await new Promise((resolve) => setTimeout(resolve, 80));
         chat.setMessages((prev) =>
           prev.map((m) =>
@@ -70,7 +72,7 @@ export const Assistant = ({
               ? {
                   ...m,
                   parts: [
-                    { type: "text", text: tokens.slice(0, i + 1).join(" ") },
+                    { type: "text", text: tokens.slice(0, Math.min(i + 2, tokens.length)).join(" ") },
                   ],
                 }
               : m
@@ -79,9 +81,9 @@ export const Assistant = ({
       }
     };
 
-    simulateStreamingMessage("Hola! Puedo ayudarte con información sobre servicios, programas y actividades de la Municipalidad de Colina. ¿Hay algún tema específico que te interese, como ayudas sociales, trámites, o actividades comunitarias?");
+    simulateStreamingMessage(openingMessage);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chat.id]);
+  }, [chat.id, openingMessage]);
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
