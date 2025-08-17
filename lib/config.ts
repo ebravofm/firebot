@@ -3,7 +3,16 @@ import { cookies } from 'next/headers';
 // ============================================================================
 // CONSTANTES DE ENTORNO
 // ============================================================================
-export const BACKEND_URL: string = process.env.BACKEND_URL || 'http://localhost:8080';
+export const ENV_CONFIG = {
+  BACKEND_URL: process.env.BACKEND_URL || 'http://localhost:8080',
+  NEXT_PUBLIC_SHOW_SIDEBAR: process.env.NEXT_PUBLIC_SHOW_SIDEBAR === 'true' || false,
+  NEXT_PUBLIC_SHOW_HEADER: process.env.NEXT_PUBLIC_SHOW_HEADER === 'true' || false,
+  NEXT_PUBLIC_SHOW_ATTACH_FILE: process.env.NEXT_PUBLIC_SHOW_ATTACH_FILE === 'true' || false,
+  NEXT_PUBLIC_SHOW_EDIT_BUTTON: process.env.NEXT_PUBLIC_SHOW_EDIT_BUTTON === 'true' || false,
+  NEXT_PUBLIC_SHOW_ASSISTANT_ACTION_BAR: process.env.NEXT_PUBLIC_SHOW_ASSISTANT_ACTION_BAR === 'true' || false,
+} as const;
+
+
 
 // ============================================================================
 // TIPOS
@@ -104,7 +113,7 @@ export async function getChatbotConfig(): Promise<ChatbotConfig | null> {
       return null;
     }
 
-    const url = `${BACKEND_URL}/chatbot-config/${chatbotId}`;
+    const url = `${ENV_CONFIG.BACKEND_URL}/chatbot-config/${chatbotId}`;
     console.log('getChatbotConfig: llamando a:', url);
     
     const response = await fetch(url, {

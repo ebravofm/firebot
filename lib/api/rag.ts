@@ -1,4 +1,4 @@
-import { BACKEND_URL, getChatbotConfig, getTokenFromCookies } from "@/lib/config";
+import { ENV_CONFIG, getChatbotConfig, getTokenFromCookies } from "@/lib/config";
 
 export interface RAGSearchResult {
   title: string;
@@ -26,7 +26,7 @@ export interface RAGSearchParams {
 export async function searchRAG(
   params: RAGSearchParams
 ): Promise<RAGSearchResponse> {
-  if (!BACKEND_URL) {
+  if (!ENV_CONFIG.BACKEND_URL) {
     throw new Error("BACKEND_URL no está definido");
   }
   
@@ -51,7 +51,7 @@ export async function searchRAG(
     collection_ids: chatbotConfig.rag_collections,
   };
 
-  const response = await fetch(`${BACKEND_URL}/rag/search`, {
+  const response = await fetch(`${ENV_CONFIG.BACKEND_URL}/rag/search`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${authToken}`,
