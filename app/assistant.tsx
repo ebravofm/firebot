@@ -20,6 +20,7 @@ import {
 import { useChat } from '@ai-sdk/react'
 import type { UIMessage } from "ai";
 import { useAISDKRuntime } from "@assistant-ui/react-ai-sdk";
+import { ENV_CONFIG } from "@/lib/env";
 
 export const Assistant = ({
   chatId,
@@ -41,11 +42,15 @@ export const Assistant = ({
     <AssistantRuntimeProvider runtime={runtime}>
       <SidebarProvider>
         <div className="flex h-dvh w-full pr-0.5">
-          <AppSidebar />
+          {ENV_CONFIG.NEXT_PUBLIC_SHOW_SIDEBAR && <AppSidebar />}
           <SidebarInset>
             <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-              <SidebarTrigger />
-              <Separator orientation="vertical" className="mr-2 h-4" />
+              {ENV_CONFIG.NEXT_PUBLIC_SHOW_SIDEBAR && (
+                <>
+                  <SidebarTrigger />
+                  <Separator orientation="vertical" className="mr-2 h-4" />
+                </>
+              )}
               <Breadcrumb>
                 <BreadcrumbList>
                   <BreadcrumbItem className="hidden md:block">
