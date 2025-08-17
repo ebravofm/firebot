@@ -44,27 +44,29 @@ export const Assistant = ({
         <div className="flex h-dvh w-full pr-0.5">
           {ENV_CONFIG.NEXT_PUBLIC_SHOW_SIDEBAR && <AppSidebar />}
           <SidebarInset>
-            <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-              {ENV_CONFIG.NEXT_PUBLIC_SHOW_SIDEBAR && (
-                <>
-                  <SidebarTrigger />
-                  <Separator orientation="vertical" className="mr-2 h-4" />
-                </>
-              )}
-              <Breadcrumb>
-                <BreadcrumbList>
-                  <BreadcrumbItem className="hidden md:block">
-                      <BreadcrumbLink href="https://firebot.cl" target="_blank" rel="noopener noreferrer">
-                        FireBot Assistant
-                    </BreadcrumbLink>
-                  </BreadcrumbItem>
-                  <BreadcrumbSeparator className="hidden md:block" />
-                  <BreadcrumbItem>
-                    <BreadcrumbPage>AI Chat Interface</BreadcrumbPage>
-                  </BreadcrumbItem>
-                </BreadcrumbList>
-              </Breadcrumb>
-            </header>
+            {ENV_CONFIG.NEXT_PUBLIC_SHOW_HEADER && (
+              <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+                {ENV_CONFIG.NEXT_PUBLIC_SHOW_SIDEBAR && (
+                  <>
+                    <SidebarTrigger />
+                    <Separator orientation="vertical" className="mr-2 h-4" />
+                  </>
+                )}
+                <Breadcrumb>
+                  <BreadcrumbList>
+                    <BreadcrumbItem className="hidden md:block">
+                        <BreadcrumbLink href="https://firebot.cl" target="_blank" rel="noopener noreferrer">
+                          FireBot Assistant
+                      </BreadcrumbLink>
+                    </BreadcrumbItem>
+                    <BreadcrumbSeparator className="hidden md:block" />
+                    <BreadcrumbItem>
+                      <BreadcrumbPage>AI Chat Interface</BreadcrumbPage>
+                    </BreadcrumbItem>
+                  </BreadcrumbList>
+                </Breadcrumb>
+              </header>
+            )}
             <div className="flex-1 overflow-hidden">
               <Thread 
                 welcomeTitle={welcomeTitle} 
