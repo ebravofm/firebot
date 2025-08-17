@@ -169,7 +169,7 @@ const Composer: FC<{ welcomeSuggestions: Array<{ label: string; title: string; a
         {/* aui-composer-input */}
         <div className="relative flex-1">
           <ComposerPrimitive.Input
-            placeholder="Send a message..."
+            placeholder={ENV_CONFIG.NEXT_PUBLIC_COMPOSER_PLACEHOLDER}
             className={
               `bg-muted border-border dark:border-muted-foreground/15 focus:outline-primary placeholder:text-muted-foreground max-h-[calc(50dvh)] min-h-[50px] w-full resize-none rounded-2xl border pl-16 pr-20 py-3 text-base outline-none`
             }

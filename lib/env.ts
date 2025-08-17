@@ -8,4 +8,5 @@ export const ENV_CONFIG = {
   NEXT_PUBLIC_SHOW_ATTACH_FILE: process.env.NEXT_PUBLIC_SHOW_ATTACH_FILE === 'true' || false,
   NEXT_PUBLIC_SHOW_EDIT_BUTTON: process.env.NEXT_PUBLIC_SHOW_EDIT_BUTTON === 'true' || false,
   NEXT_PUBLIC_SHOW_ASSISTANT_ACTION_BAR: process.env.NEXT_PUBLIC_SHOW_ASSISTANT_ACTION_BAR === 'true' || false,
+  NEXT_PUBLIC_COMPOSER_PLACEHOLDER: process.env.NEXT_PUBLIC_COMPOSER_PLACEHOLDER || 'Send a message...',
 } as const;
