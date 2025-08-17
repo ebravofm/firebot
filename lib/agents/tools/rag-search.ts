@@ -1,16 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 
-
-export interface RagSearchConfig {
-  maxResults: number;
-}
-
-export const defaultRagSearchConfig: RagSearchConfig = {
-  maxResults: 3,
-};
-
-export function createRagSearchTool(config: RagSearchConfig) {
+export function createRagSearchTool({ maxResults = 3 }: { maxResults?: number } = {}) {
   return tool({
     description:
       "Busca documentos relevantes mediante RAG. Devuelve resultados con título, contenido y similaridad.",
@@ -33,7 +24,7 @@ export function createRagSearchTool(config: RagSearchConfig) {
           contenido: "Más contenido simulado referente a: " + query,
           similaridad: 0.77,
         },
-      ].slice(0, config.maxResults);
+      ].slice(0, maxResults);
 
       // Devolvemos una estructura simple como texto
       const formatted = results
