@@ -25,8 +25,8 @@ export interface Database {
           id: string;
           thread_id: string;
           role: string;
-          content: any;
-          parts: any[];
+          content: string;
+          parts: unknown[];
           created_at: string;
           updated_at: string;
         };
@@ -34,8 +34,8 @@ export interface Database {
           id?: string;
           thread_id: string;
           role: string;
-          content: any;
-          parts: any[];
+          content: string;
+          parts: unknown[];
           created_at?: string;
           updated_at?: string;
         };
@@ -43,8 +43,8 @@ export interface Database {
           id?: string;
           thread_id?: string;
           role?: string;
-          content?: any;
-          parts?: any[];
+          content?: string;
+          parts?: unknown[];
           created_at?: string;
           updated_at?: string;
         };
@@ -58,7 +58,7 @@ export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
-  parts: any[];
+  parts: unknown[];
   timestamp: Date;
 }
 

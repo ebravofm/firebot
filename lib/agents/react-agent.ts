@@ -1,7 +1,6 @@
 import { openai } from "@ai-sdk/openai";
 import { streamText, convertToModelMessages, type UIMessage, stepCountIs } from "ai";
-import { createRagSearchTool } from "@/lib/agents/tools/rag-search";
-import { defaultRagSearchConfig } from "@/lib/agents/tools/rag-search-config";
+import { createRagSearchTool, defaultRagSearchConfig } from "@/lib/agents/tools/rag-search";
 
 export function streamReactAgent({ messages }: { messages: UIMessage[] }) {
   const ragSearch = createRagSearchTool(defaultRagSearchConfig);
