@@ -1,6 +1,6 @@
 import { tool } from "ai";
 import { z } from "zod";
-import { searchRAG, DEFAULT_WORKSPACE_ID, DEFAULT_COLLECTION_IDS } from "@/lib/api/rag";
+import { searchRAG } from "@/lib/api/rag";
 
 export function createRagSearchTool({ maxResults = 3 }: { maxResults?: number } = {}) {
   return tool({
@@ -12,8 +12,6 @@ export function createRagSearchTool({ maxResults = 3 }: { maxResults?: number } 
         const response = await searchRAG({
           query,
           top_k: maxResults,
-          workspace_id: DEFAULT_WORKSPACE_ID,
-          collection_ids: DEFAULT_COLLECTION_IDS,
         });
 
         const results = response.data || [];

@@ -1,9 +1,4 @@
-import { BACKEND_URL, getJWTFromBrowserCookies } from "@/lib/config";
-import { cookies } from 'next/headers';
-
-// Constantes hardcodeadas para RAG
-export const DEFAULT_WORKSPACE_ID = 1;
-export const DEFAULT_COLLECTION_IDS = [1];
+import { BACKEND_URL, getJWTFromBrowserCookies, getChatbotConfig, getTokenFromCookies } from "@/lib/config";
 
 export interface RAGSearchResult {
   title: string;
@@ -22,19 +17,10 @@ export interface RAGSearchResponse {
 }
 
 export interface RAGSearchParams {
-  workspace_id: number;
-  collection_ids: number[];
   query: string;
   top_k?: number;
   similarity_threshold?: number;
   response_format?: string;
-}
-
-export async function getTokenFromCookies() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get('jwt')?.value || null;
-  console.log('Token from cookies:', token);
-  return token;
 }
 
 export async function searchRAG(
@@ -49,13 +35,20 @@ export async function searchRAG(
     throw new Error("JWT no encontrado en las cookies");
   }
 
+  // Obtener configuración del chatbot para workspace_id y collection_ids
+  const chatbotConfig = await getChatbotConfig();
+  
+  if (!chatbotConfig) {
+    throw new Error("No se pudo obtener la configuración del chatbot");
+  }
+
   const body = {
     top_k: 5,
     similarity_threshold: 0,
     response_format: "minimal",
     ...params,
-    workspace_id: DEFAULT_WORKSPACE_ID,
-    collection_ids: DEFAULT_COLLECTION_IDS,
+    workspace_id: chatbotConfig.workspace_id,
+    collection_ids: chatbotConfig.rag_collections,
   };
 
   const response = await fetch(`${BACKEND_URL}/rag/search`, {
