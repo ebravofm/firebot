@@ -49,13 +49,13 @@ export const Assistant = ({
               <Breadcrumb>
                 <BreadcrumbList>
                   <BreadcrumbItem className="hidden md:block">
-                    <BreadcrumbLink href="https://www.assistant-ui.com/docs/getting-started" target="_blank" rel="noopener noreferrer">
-                      Build Your Own ChatGPT UX
+                      <BreadcrumbLink href="https://firebot.cl" target="_blank" rel="noopener noreferrer">
+                        FireBot Assistant
                     </BreadcrumbLink>
                   </BreadcrumbItem>
                   <BreadcrumbSeparator className="hidden md:block" />
                   <BreadcrumbItem>
-                    <BreadcrumbPage>Starter Template</BreadcrumbPage>
+                    <BreadcrumbPage>AI Chat Interface</BreadcrumbPage>
                   </BreadcrumbItem>
                 </BreadcrumbList>
               </Breadcrumb>
