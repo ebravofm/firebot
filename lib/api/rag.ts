@@ -1,4 +1,5 @@
-import { ENV_CONFIG, getChatbotConfig, getTokenFromCookies } from "@/lib/config";
+import { ENV_CONFIG } from "@/lib/env";
+import { getChatbotConfig, getTokenFromCookies } from "@/lib/config";
 
 export interface RAGSearchResult {
   title: string;

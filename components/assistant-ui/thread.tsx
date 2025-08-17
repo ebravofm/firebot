@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { MarkdownText } from "./markdown-text";
 import { ToolFallback } from "./tool-fallback";
+import { ENV_CONFIG } from "@/lib/env";
 
 export const Thread: FC<{ 
   welcomeTitle: string; 
@@ -329,11 +330,13 @@ const UserActionBar: FC = () => {
       // aui-user-action-bar-root
       className="col-start-1 mt-2.5 mr-3 flex flex-col items-end"
     >
-      <ActionBarPrimitive.Edit asChild>
-        <TooltipIconButton tooltip="Edit">
-          <PencilIcon />
-        </TooltipIconButton>
-      </ActionBarPrimitive.Edit>
+      {ENV_CONFIG.NEXT_PUBLIC_SHOW_EDIT_BUTTON && (
+        <ActionBarPrimitive.Edit asChild>
+          <TooltipIconButton tooltip="Edit">
+            <PencilIcon />
+          </TooltipIconButton>
+        </ActionBarPrimitive.Edit>
+      )}
     </ActionBarPrimitive.Root>
   );
 };
