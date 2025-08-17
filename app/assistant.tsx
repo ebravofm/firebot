@@ -24,9 +24,13 @@ import { useAISDKRuntime } from "@assistant-ui/react-ai-sdk";
 export const Assistant = ({
   chatId,
   initialMessages,
+  welcomeTitle,
+  welcomeSubtitle,
 }: {
   chatId?: string;
   initialMessages?: UIMessage[];
+  welcomeTitle: string;
+  welcomeSubtitle: string;
 }) => {
   const chat = useChat({ id: chatId, messages: initialMessages });
   const runtime = useAISDKRuntime(chat);
@@ -55,7 +59,7 @@ export const Assistant = ({
               </Breadcrumb>
             </header>
             <div className="flex-1 overflow-hidden">
-              <Thread />
+              <Thread welcomeTitle={welcomeTitle} welcomeSubtitle={welcomeSubtitle} />
             </div>
           </SidebarInset>
         </div>

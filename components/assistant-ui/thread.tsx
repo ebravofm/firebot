@@ -27,7 +27,7 @@ import { cn } from "@/lib/utils";
 import { MarkdownText } from "./markdown-text";
 import { ToolFallback } from "./tool-fallback";
 
-export const Thread: FC = () => {
+export const Thread: FC<{ welcomeTitle: string; welcomeSubtitle: string }> = ({ welcomeTitle, welcomeSubtitle }) => {
   return (
     <ThreadPrimitive.Root
       // aui-thread-root
@@ -39,7 +39,7 @@ export const Thread: FC = () => {
     >
       {/* aui-thread-viewport */}
       <ThreadPrimitive.Viewport className="relative flex min-w-0 flex-1 flex-col gap-6 overflow-y-scroll">
-        <ThreadWelcome />
+        <ThreadWelcome welcomeTitle={welcomeTitle} welcomeSubtitle={welcomeSubtitle} />
 
         <ThreadPrimitive.Messages
           components={{
@@ -75,7 +75,7 @@ const ThreadScrollToBottom: FC = () => {
   );
 };
 
-const ThreadWelcome: FC = () => {
+const ThreadWelcome: FC<{ welcomeTitle: string; welcomeSubtitle: string }> = ({ welcomeTitle, welcomeSubtitle }) => {
   return (
     <ThreadPrimitive.Empty>
       {/* aui-thread-welcome-root */}
@@ -92,18 +92,20 @@ const ThreadWelcome: FC = () => {
               // aui-thread-welcome-message-motion-1
               className="text-2xl font-semibold"
             >
-              Hello there!
+              {welcomeTitle}
             </motion.div>
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 10 }}
-              transition={{ delay: 0.6 }}
-              // aui-thread-welcome-message-motion-2
-              className="text-muted-foreground/65 text-2xl"
-            >
-              How can I help you today?
-            </motion.div>
+            {welcomeSubtitle && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                transition={{ delay: 0.6 }}
+                // aui-thread-welcome-message-motion-2
+                className="text-muted-foreground/65 text-2xl"
+              >
+                {welcomeSubtitle}
+              </motion.div>
+            )}
           </div>
         </div>
       </div>
