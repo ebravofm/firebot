@@ -15,6 +15,9 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
   const firstLine = welcomeMessage.split('\n')[0] || welcomeMessage;
   const remainingLines = welcomeMessage.split('\n').slice(1).join('\n') || '';
   
+  // Obtener welcome suggestions
+  const welcomeSuggestions = chatbotConfig?.welcome_suggestions || [];
+  
   return (
     <>
       <SetThreadCookie id={id} />
@@ -23,6 +26,7 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
         initialMessages={messages}
         welcomeTitle={firstLine}
         welcomeSubtitle={remainingLines}
+        welcomeSuggestions={welcomeSuggestions}
       />
     </>
   );

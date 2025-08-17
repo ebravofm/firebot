@@ -27,7 +27,11 @@ import { cn } from "@/lib/utils";
 import { MarkdownText } from "./markdown-text";
 import { ToolFallback } from "./tool-fallback";
 
-export const Thread: FC<{ welcomeTitle: string; welcomeSubtitle: string }> = ({ welcomeTitle, welcomeSubtitle }) => {
+export const Thread: FC<{ 
+  welcomeTitle: string; 
+  welcomeSubtitle: string;
+  welcomeSuggestions: Array<{ label: string; title: string; action: string }>;
+}> = ({ welcomeTitle, welcomeSubtitle, welcomeSuggestions }) => {
   return (
     <ThreadPrimitive.Root
       // aui-thread-root
@@ -55,7 +59,7 @@ export const Thread: FC<{ welcomeTitle: string; welcomeSubtitle: string }> = ({ 
         </ThreadPrimitive.If>
       </ThreadPrimitive.Viewport>
 
-      <Composer />
+      <Composer welcomeSuggestions={welcomeSuggestions} />
     </ThreadPrimitive.Root>
   );
 };
@@ -113,32 +117,11 @@ const ThreadWelcome: FC<{ welcomeTitle: string; welcomeSubtitle: string }> = ({ 
   );
 };
 
-const ThreadWelcomeSuggestions: FC = () => {
+const ThreadWelcomeSuggestions: FC<{ welcomeSuggestions: Array<{ label: string; title: string; action: string }> }> = ({ welcomeSuggestions }) => {
   return (
     // aui-thread-welcome-suggestions
     <div className="grid w-full gap-2 sm:grid-cols-2">
-      {[
-        {
-          title: "What are the advantages",
-          label: "of using Assistant Cloud?",
-          action: "What are the advantages of using Assistant Cloud?",
-        },
-        {
-          title: "Write code to",
-          label: `demonstrate topological sorting`,
-          action: `Write code to demonstrate topological sorting`,
-        },
-        {
-          title: "Help me write an essay",
-          label: `about AI chat applications`,
-          action: `Help me write an essay about AI chat applications`,
-        },
-        {
-          title: "What is the weather",
-          label: "in San Francisco?",
-          action: "What is the weather in San Francisco?",
-        },
-      ].map((suggestedAction, index) => (
+      {welcomeSuggestions.map((suggestedAction, index) => (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -172,13 +155,13 @@ const ThreadWelcomeSuggestions: FC = () => {
   );
 };
 
-const Composer: FC = () => {
+const Composer: FC<{ welcomeSuggestions: Array<{ label: string; title: string; action: string }> }> = ({ welcomeSuggestions }) => {
   return (
     // aui-composer-wrapper
     <div className="bg-background relative mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4 px-[var(--thread-padding-x)] pb-4 md:pb-6">
       <ThreadScrollToBottom />
       <ThreadPrimitive.Empty>
-        <ThreadWelcomeSuggestions />
+        <ThreadWelcomeSuggestions welcomeSuggestions={welcomeSuggestions} />
       </ThreadPrimitive.Empty>
       {/* aui-composer-root */}
       <ComposerPrimitive.Root className="focus-within::ring-offset-2 relative flex w-full flex-col rounded-2xl focus-within:ring-2 focus-within:ring-black dark:focus-within:ring-white">

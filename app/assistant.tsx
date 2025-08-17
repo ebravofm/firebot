@@ -26,11 +26,13 @@ export const Assistant = ({
   initialMessages,
   welcomeTitle,
   welcomeSubtitle,
+  welcomeSuggestions,
 }: {
   chatId?: string;
   initialMessages?: UIMessage[];
   welcomeTitle: string;
   welcomeSubtitle: string;
+  welcomeSuggestions: Array<{ label: string; title: string; action: string }>;
 }) => {
   const chat = useChat({ id: chatId, messages: initialMessages });
   const runtime = useAISDKRuntime(chat);
@@ -59,7 +61,11 @@ export const Assistant = ({
               </Breadcrumb>
             </header>
             <div className="flex-1 overflow-hidden">
-              <Thread welcomeTitle={welcomeTitle} welcomeSubtitle={welcomeSubtitle} />
+              <Thread 
+                welcomeTitle={welcomeTitle} 
+                welcomeSubtitle={welcomeSubtitle}
+                welcomeSuggestions={welcomeSuggestions}
+              />
             </div>
           </SidebarInset>
         </div>
