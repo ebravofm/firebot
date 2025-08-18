@@ -26,13 +26,6 @@ import { useRouter } from "next/navigation";
 import { DropdownMenuOptions } from "@/components/DropdownMenuOptions";
 import { InfoModal } from "@/components/InfoModal";
 
-
-export function removeThreadIdFromBrowserCookies(): void {
-  if (typeof window !== 'undefined') {
-    document.cookie = 'thread_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-  }
-}
-
 export const Assistant = ({
   chatId,
   initialMessages,
@@ -55,8 +48,9 @@ export const Assistant = ({
   // Estado: tamaño de fuente (zoom)
   const [fontSize, setFontSize] = useState<number>(() => {
     if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("fontSize");
-      return stored ? parseInt(stored, 10) : 16;
+      const cookies = document.cookie.split(';');
+      const fontSizeCookie = cookies.find(cookie => cookie.trim().startsWith('fontSize='));
+      return fontSizeCookie ? parseInt(fontSizeCookie.split('=')[1], 10) : 16;
     }
     return 16;
   });
@@ -64,20 +58,25 @@ export const Assistant = ({
   // Estado: modal de información
   const [isInfoModalOpen, setIsInfoModalOpen] = useState<boolean>(false);
 
-  // Aplicar zoom al body y persistir
+  // Aplicar zoom al body y persistir en cookies
   useEffect(() => {
     if (typeof document !== "undefined") {
       document.body.style.fontSize = `${fontSize}px`;
-      localStorage.setItem("fontSize", String(fontSize));
+      document.cookie = `fontSize=${fontSize}; path=/; max-age=31536000`;
     }
   }, [fontSize]);
 
   const handleZoomIn = () => setFontSize((prev) => Math.min(prev + 2, 32));
   const handleZoomOut = () => setFontSize((prev) => Math.max(prev - 2, 10));
 
-  // Reiniciar chat: limpiar cookie y navegar a /chat para crear nuevo thread
+  // Reiniciar chat: limpiar cookies y navegar a /chat para crear nuevo thread
   const handleResetChat = async () => {
-    removeThreadIdFromBrowserCookies();
+    if (typeof window !== 'undefined') {
+      document.cookie = 'thread_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    }
+      if (typeof document !== "undefined") {
+      document.cookie = 'fontSize=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    }
     router.push("/chat");
   };
 
