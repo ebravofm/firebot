@@ -21,7 +21,17 @@ import { useChat } from '@ai-sdk/react'
 import type { UIMessage } from "ai";
 import { useAISDKRuntime } from "@assistant-ui/react-ai-sdk";
 import { ENV_CONFIG } from "@/lib/env";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { DropdownMenuOptions } from "@/components/DropdownMenuOptions";
+import { InfoModal } from "@/components/InfoModal";
+
+
+export function removeThreadIdFromBrowserCookies(): void {
+  if (typeof window !== 'undefined') {
+    document.cookie = 'thread_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+  }
+}
 
 export const Assistant = ({
   chatId,
@@ -40,6 +50,39 @@ export const Assistant = ({
 }) => {
   const chat = useChat({ id: chatId, messages: initialMessages });
   const runtime = useAISDKRuntime(chat);
+  const router = useRouter();
+
+  // Estado: tamaño de fuente (zoom)
+  const [fontSize, setFontSize] = useState<number>(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("fontSize");
+      return stored ? parseInt(stored, 10) : 16;
+    }
+    return 16;
+  });
+
+  // Estado: modal de información
+  const [isInfoModalOpen, setIsInfoModalOpen] = useState<boolean>(false);
+
+  // Aplicar zoom al body y persistir
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      document.body.style.fontSize = `${fontSize}px`;
+      localStorage.setItem("fontSize", String(fontSize));
+    }
+  }, [fontSize]);
+
+  const handleZoomIn = () => setFontSize((prev) => Math.min(prev + 2, 32));
+  const handleZoomOut = () => setFontSize((prev) => Math.max(prev - 2, 10));
+
+  // Reiniciar chat: limpiar cookie y navegar a /chat para crear nuevo thread
+  const handleResetChat = async () => {
+    removeThreadIdFromBrowserCookies();
+    router.push("/chat");
+  };
+
+  const handleShowInfo = () => setIsInfoModalOpen(true);
+  const handleCloseInfoModal = () => setIsInfoModalOpen(false);
 
   // Simular un mensaje de streaming simple cuando el thread es nuevo
   const welcomeStartedRef = useRef(false);
@@ -123,6 +166,19 @@ export const Assistant = ({
             </div>
           </SidebarInset>
         </div>
+
+        {/* Botón flotante de opciones */}
+        <div className="fixed top-4 right-4 z-50">
+          <DropdownMenuOptions 
+            onReset={handleResetChat}
+            onInfo={handleShowInfo}
+            onZoomIn={handleZoomIn}
+            onZoomOut={handleZoomOut}
+          />
+        </div>
+
+        {/* Modal de información */}
+        <InfoModal isOpen={isInfoModalOpen} onClose={handleCloseInfoModal} />
       </SidebarProvider>
     </AssistantRuntimeProvider>
   );
