@@ -5,8 +5,6 @@ import { Button } from "../ui/button";
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 
 export const RagSearchToolUI: ToolCallContentPartComponent = ({ 
-  toolName, 
-  argsText, 
   result 
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(true);
@@ -36,19 +34,19 @@ export const RagSearchToolUI: ToolCallContentPartComponent = ({
     <div className="mb-4 flex w-full flex-col gap-3 rounded-lg border py-3">
       <div className="flex items-center gap-2 px-4">
         <CheckIcon className="size-4" />
-        <p className="">
+        <div className="">
           {result === undefined ? (
-            <span className="inline-flex items-center gap-2">
+            <div className="inline-flex items-center gap-2">
               <div className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-pulse" />
               Buscando información…
-            </span>
+            </div>
           ) : (
-            <span className="inline-flex items-center gap-2">
+            <div className="inline-flex items-center gap-2">
               <div className="h-2 w-2 rounded-full bg-emerald-500" />
               Búsqueda completada
-            </span>
+            </div>
           )}
-        </p>
+        </div>
         <div className="flex-grow" />
         {result && (
           <Button onClick={() => setIsCollapsed(!isCollapsed)}>
