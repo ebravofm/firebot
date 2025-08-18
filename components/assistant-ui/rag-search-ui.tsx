@@ -17,7 +17,7 @@ export const RagSearchToolUI: ToolCallContentPartComponent = ({
         {result === undefined ? (
           <div className="inline-flex items-center gap-2">
             <div className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-pulse" />
-            <span className="text-muted-foreground">Buscando información…</span>
+            <span className="text-muted-foreground">Buscando información...</span>
           </div>
         ) : (
           <div className="inline-flex items-center gap-2">
@@ -33,7 +33,6 @@ export const RagSearchToolUI: ToolCallContentPartComponent = ({
   return (
     <div className="mb-4 flex w-full flex-col gap-3 rounded-lg border py-3">
       <div className="flex items-center gap-2 px-4">
-        <CheckIcon className="size-4" />
         <div className="">
           {result === undefined ? (
             <div className="inline-flex items-center gap-2">
