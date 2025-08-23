@@ -1,13 +1,13 @@
 (function (config = {}) {
   const DEFAULT_CONFIG = {
-    baseUrl: 'http://localhost:3001/',
+    baseUrl: 'http://localhost:3000/?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjIsInVzZXJfaWQiOjIsImlkIjoyLCJlbWFpbCI6ImVicmF2b0BkYXRhcHVsc2UuY2wiLCJ3b3Jrc3BhY2VfaWQiOjEsInJvbGVfaWQiOjIsInR5cGUiOiJwZXJtYW5lbnQiLCJpYXQiOjE3NTUyMTY3OTB9.DNj6RYUiCwdAOupYla786iTSPMuvOZIpM-LetcMtuzk&chatbot_id=1',
     position: { bottom: '2rem', right: '2rem' },
     size: { width: '450px', height: '600px' },
     theme: {
-      primaryColor: '#008130',
+      primaryColor: '#dc2626',
       textColor: '#ffffff',
       tooltipDelay: 500,
-      buttonColor: '#008130'
+      buttonColor: '#dc2626'
     },
     labels: {
       open: 'Abrir Asistente',
@@ -68,8 +68,8 @@
     position: 'fixed',
     bottom: widgetConfig.position.bottom,
     right: widgetConfig.position.right,
-    width: '3.5rem',
-    height: '3.5rem',
+    width: '3rem',
+    height: '3rem',
     zIndex: '9999'
   });
 
@@ -80,8 +80,8 @@
   chatButton.setAttribute('aria-haspopup', 'dialog');
   chatButton.setAttribute('aria-expanded', 'false');
   const closedIcon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  closedIcon.setAttribute('width', '28');
-  closedIcon.setAttribute('height', '28');
+  closedIcon.setAttribute('width', '20');
+  closedIcon.setAttribute('height', '20');
   closedIcon.setAttribute('viewBox', '0 0 24 24');
   closedIcon.setAttribute('fill', 'none');
   closedIcon.setAttribute('stroke', 'currentColor');
@@ -120,8 +120,8 @@
   closedIcon.appendChild(path5);
 
   const openIcon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  openIcon.setAttribute('width', '28');
-  openIcon.setAttribute('height', '28');
+  openIcon.setAttribute('width', '15');
+  openIcon.setAttribute('height', '15');
   openIcon.setAttribute('viewBox', '0 0 24 24');
   openIcon.setAttribute('fill', 'none');
   openIcon.setAttribute('stroke', 'currentColor');
@@ -297,12 +297,21 @@
 
   const style = document.createElement('style');
   style.innerHTML = `
+/* Animación de wiggle para el botón del asistente */
+@keyframes skew-y-shaking {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  25% { transform: translate(5px, 5px) rotate(5deg); }
+  50% { transform: translate(0, 0) rotate(0deg); }
+  75% { transform: translate(-5px, 5px) rotate(-5deg); }
+  100% { transform: translate(0, 0) rotate(0deg); }
+}
+
 .aui-modal-anchor {
   position: fixed;
   bottom: var(--widget-position-bottom, 2rem);
   right: var(--widget-position-right, 2rem);
-  width: 3.5rem;
-  height: 3.5rem;
+  width: 3rem;
+  height: 3rem;
 }
 .aui-modal-button {
   position: relative;
@@ -312,6 +321,14 @@
   padding: 0;
   transition: transform 150ms cubic-bezier(0.4, 0, 0.2, 1);
   border: 0;
+}
+
+.aui-modal-button[data-state="closed"] {
+  animation: skew-y-shaking 2.25s infinite;
+}
+
+.aui-modal-button[data-state="open"] {
+  animation: none;
 }
 .aui-modal-button:hover { 
   transform: scale(1.1);
@@ -356,7 +373,7 @@
 }
 
 .aui-button-primary {
-  background-color: var(--widget-primary-color, #008130);
+  background-color: var(--widget-primary-color, #dc2626);
   color: white;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
