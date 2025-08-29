@@ -104,17 +104,6 @@ export async function saveChat({
   console.log(`[saveChat] Attempting to save chat with ID: ${chatId}`);
   console.log(`[saveChat] Total messages received:`, messages.length);
   
-  // Obtener mensajes existentes para evitar duplicados
-  const existingMessages = await loadChat(chatId);
-  console.log(`[saveChat] Existing messages in DB:`, existingMessages.length);
-
-  // Construir firmas normalizadas de los mensajes existentes (por rol + texto)
-  const existingSignatures = new Set(
-    existingMessages
-      .filter(m => m.role === 'user' || m.role === 'assistant')
-      .map(normalizeMessageSignature)
-  );
-
   // 1) Deduplicar por id dentro del lote recibido
   const seenIds = new Set<string>();
   const uniqueById = messages.filter((m) => {
@@ -124,19 +113,26 @@ export async function saveChat({
     return true;
   });
 
-  // 2) Filtrar solo los mensajes que NO existen en la BD por ID
-  const existingMessageIds = new Set(existingMessages.map(m => m.id));
-  const newMessages = uniqueById.filter(m => !existingMessageIds.has(m.id));
+  // 2) FILTRO ÚNICO: Verificar IDs existentes en BD
+  const messageIdsToInsert = uniqueById.map(m => m.id);
+  const { data: existingIds } = await supabase
+    .from("messages")
+    .select("id")
+    .in("id", messageIdsToInsert);
 
-  console.log(`[saveChat] New messages to save after filtering:`, newMessages.length);
-
-  if (newMessages.length === 0) {
+  // 3) Filtrar y preparar para inserción
+  const existingIdSet = new Set(existingIds?.map(m => m.id) || []);
+  const trulyNewMessages = uniqueById.filter(m => !existingIdSet.has(m.id));
+  
+  console.log(`[saveChat] Found ${existingIds?.length || 0} existing IDs, filtering to ${trulyNewMessages.length} truly new messages`);
+  
+  if (trulyNewMessages.length === 0) {
     console.log(`[saveChat] No new messages to save`);
     return;
   }
 
-  // Preparar mensajes para insertar en la BD
-  const messagesToInsert = newMessages.map(msg => ({
+  // 4) Preparar e insertar solo los nuevos
+  const messagesToInsert = trulyNewMessages.map(msg => ({
     id: msg.id, // Preservar el ID del frontend
     thread_id: chatId,
     role: msg.role,
@@ -146,37 +142,6 @@ export async function saveChat({
 
   console.log(`[saveChat] Inserting messages:`, messagesToInsert);
 
-  // FILTRO FINAL: Verificar que los IDs realmente no existan en la BD
-  const messageIdsToInsert = messagesToInsert.map(m => m.id);
-  const { data: existingIds } = await supabase
-    .from("messages")
-    .select("id")
-    .in("id", messageIdsToInsert);
-
-  if (existingIds && existingIds.length > 0) {
-    const existingIdSet = new Set(existingIds.map(m => m.id));
-    const trulyNewMessages = messagesToInsert.filter(m => !existingIdSet.has(m.id));
-    
-    console.log(`[saveChat] Found ${existingIds.length} existing IDs, filtering to ${trulyNewMessages.length} truly new messages`);
-    
-    if (trulyNewMessages.length === 0) {
-      console.log(`[saveChat] No truly new messages to insert`);
-      return;
-    }
-    
-    // Solo insertar los que realmente no existen
-    const { error } = await supabase.from("messages").insert(trulyNewMessages);
-    
-    if (error) {
-      console.error("[saveChat] Database error:", error);
-      throw new Error(error.message);
-    }
-    
-    console.log(`[saveChat] Successfully saved ${trulyNewMessages.length} truly new messages`);
-    return;
-  }
-
-  // Si no hay IDs existentes, insertar todos
   const { error } = await supabase.from("messages").insert(messagesToInsert);
 
   if (error) {
