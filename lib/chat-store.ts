@@ -1,6 +1,6 @@
 import { type UIMessage } from "ai";
 import { supabase } from "../lib/supabase-client";
-import { setThreadIdInBrowserCookies } from "../lib/config";
+import { setThreadIdInBrowserCookies, getChatbotConfig } from "../lib/config";
 
 interface DatabaseMessage {
   id: string;
@@ -22,9 +22,20 @@ function normalizeMessageSignature(message: UIMessage): string {
 }
 
 export async function createChat(): Promise<string> {
+  // Obtener la configuración del chatbot para obtener el workspace_id
+  const chatbotConfig = await getChatbotConfig();
+  
+  if (!chatbotConfig) {
+    throw new Error("No se pudo obtener la configuración del chatbot");
+  }
+
   const { data, error } = await supabase
     .from("threads")
-    .insert({})
+    .insert({ 
+      workspace_id: chatbotConfig.workspace_id,
+      chatbot_id: chatbotConfig.id,
+      flag: false // valor por defecto
+    })
     .select("id")
     .single();
 

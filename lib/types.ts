@@ -6,16 +6,34 @@ export interface Database {
       threads: {
         Row: {
           id: string;
+          workspace_id: number; // NUEVO
+          chat_user_id: string | null; // NUEVO
+          chatbot_id: number | null; // NUEVO
+          user_rating: number | null; // NUEVO
+          ai_summary: string | null; // NUEVO
+          flag: boolean; // NUEVO
           created_at: string;
           updated_at: string;
         };
         Insert: {
           id?: string;
+          workspace_id: number; // NUEVO
+          chat_user_id?: string | null; // NUEVO
+          chatbot_id?: number | null; // NUEVO
+          user_rating?: number | null; // NUEVO
+          ai_summary?: string | null; // NUEVO
+          flag?: boolean; // NUEVO
           created_at?: string;
           updated_at?: string;
         };
         Update: {
           id?: string;
+          workspace_id?: number; // NUEVO
+          chat_user_id?: string | null; // NUEVO
+          chatbot_id?: number | null; // NUEVO
+          user_rating?: number | null; // NUEVO
+          ai_summary?: string | null; // NUEVO
+          flag?: boolean; // NUEVO
           created_at?: string;
           updated_at?: string;
         };
@@ -23,16 +41,16 @@ export interface Database {
       messages: {
         Row: {
           id: string;
-          thread_id: string;
+          thread_id: string | null; // CAMBIADO: ahora puede ser null
           role: string;
-          content: string;
+          content: string; // Mantener como string para compatibilidad
           parts: unknown[];
           created_at: string;
           updated_at: string;
         };
         Insert: {
           id?: string;
-          thread_id: string;
+          thread_id: string | null; // CAMBIADO: ahora puede ser null
           role: string;
           content: string;
           parts: unknown[];
@@ -41,7 +59,7 @@ export interface Database {
         };
         Update: {
           id?: string;
-          thread_id?: string;
+          thread_id?: string | null; // CAMBIADO: ahora puede ser null
           role?: string;
           content?: string;
           parts?: unknown[];
