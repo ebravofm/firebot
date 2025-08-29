@@ -15,7 +15,7 @@ export async function POST(req: Request) {
 
   return result.toUIMessageStreamResponse({
     originalMessages: messages,
-    generateMessageId: createIdGenerator({ prefix: "msg", size: 16 }),
+    generateMessageId: createIdGenerator({ size: 16 }),
     onFinish: ({ messages }) => {
       console.log(`[API] onFinish called with ${messages.length} messages for chatId: ${chatId}`);
       console.log(`[API] Messages in onFinish:`, messages.map(m => ({ id: m.id, role: m.role, content: m.parts?.find(p => p.type === 'text')?.text?.substring(0, 50) })));
