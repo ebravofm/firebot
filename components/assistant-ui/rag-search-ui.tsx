@@ -2,7 +2,7 @@ import { ToolCallContentPartComponent } from "@assistant-ui/react";
 import { ENV_CONFIG } from "@/lib/env";
 import { useState } from "react";
 import { Button } from "../ui/button";
-import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react";
+import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 
 export const RagSearchToolUI: ToolCallContentPartComponent = ({ 
   result 
