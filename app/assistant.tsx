@@ -87,9 +87,17 @@ export const Assistant = ({
   const welcomeStartedRef = useRef(false);
 
   useEffect(() => {
+    console.log(`[Assistant] useEffect triggered with chat.id: ${chat.id}, openingMessage: ${openingMessage?.substring(0, 30)}`);
+    console.log(`[Assistant] initialMessages length: ${initialMessages?.length || 0}`);
+    console.log(`[Assistant] welcomeStartedRef.current: ${welcomeStartedRef.current}`);
+    
     const isNewThread = !initialMessages || initialMessages.length === 0;
-    if (!isNewThread || welcomeStartedRef.current || !openingMessage?.trim()) return;
+    if (!isNewThread || welcomeStartedRef.current || !openingMessage?.trim()) {
+      console.log(`[Assistant] useEffect early return - isNewThread: ${isNewThread}, welcomeStarted: ${welcomeStartedRef.current}, hasOpeningMessage: ${!!openingMessage?.trim()}`);
+      return;
+    }
 
+    console.log(`[Assistant] Starting welcome message simulation`);
     welcomeStartedRef.current = true;
 
     const simulateStreamingMessage = async (text: string) => {
@@ -97,6 +105,7 @@ export const Assistant = ({
       const tokens = text.split(" ");
 
       // Crear el mensaje inicial vacío
+      console.log(`[Assistant] Creating initial empty message with ID: ${messageId}`);
       chat.setMessages([
         {
           id: messageId,
