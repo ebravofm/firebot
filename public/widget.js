@@ -1,6 +1,6 @@
 (function (config = {}) {
   const DEFAULT_CONFIG = {
-    baseUrl: 'http://localhost:3000/?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjIsInVzZXJfaWQiOjIsImlkIjoyLCJlbWFpbCI6ImVicmF2b0BkYXRhcHVsc2UuY2wiLCJ3b3Jrc3BhY2VfaWQiOjEsInJvbGVfaWQiOjIsInR5cGUiOiJwZXJtYW5lbnQiLCJpYXQiOjE3NTUyMTY3OTB9.DNj6RYUiCwdAOupYla786iTSPMuvOZIpM-LetcMtuzk&chatbot_id=1',
+    baseUrl: 'http://localhost:3000/?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEsInVzZXJfaWQiOjEsImlkIjoxLCJlbWFpbCI6ImVtby5icmF2b0BnbWFpbC5jb20iLCJ3b3Jrc3BhY2VfaWQiOjEsInJvbGVfaWQiOjIsImNoYXRib3RfaWQiOjEsInR5cGUiOiJ3aWRnZXQiLCJpYXQiOjE3NTczOTA5MDd9.7DbgZJybNT4sChyF8KkaNsFD9GGLnmvx_XaWR-idr08',
     position: { bottom: '2rem', right: '2rem' },
     size: { width: '450px', height: '600px' },
     theme: {

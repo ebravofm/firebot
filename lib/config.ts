@@ -33,11 +33,51 @@ export async function getTokenFromCookies() {
   return token;
 }
 
-export async function getChatbotIdFromCookies() {
+/**
+ * Decodifica un JWT y extrae el payload
+ */
+function decodeJWT(token: string): any {
+  try {
+    // Un JWT tiene la estructura: header.payload.signature
+    const parts = token.split('.');
+    if (parts.length !== 3) {
+      throw new Error('Token JWT inválido');
+    }
+    
+    // Decodificar la parte del payload (base64url)
+    const payload = parts[1];
+    // Convertir base64url a base64 estándar
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+    // Agregar padding si es necesario
+    const padded = base64.padEnd(base64.length + (4 - base64.length % 4) % 4, '=');
+    
+    // Decodificar y parsear JSON
+    const decoded = JSON.parse(atob(padded));
+    return decoded;
+  } catch (error) {
+    console.error('Error decodificando JWT:', error);
+    return null;
+  }
+}
+
+export async function getChatbotIdFromJWT() {
   const cookieStore = await cookies();
-  const chatbotId = cookieStore.get('chatbot_id')?.value || null;
-  console.log('Chatbot ID from cookies:', chatbotId);
-  return chatbotId;
+  const jwtToken = cookieStore.get('jwt')?.value || null;
+  
+  if (!jwtToken) {
+    console.log('getChatbotIdFromJWT: no JWT token found');
+    return null;
+  }
+  
+  const payload = decodeJWT(jwtToken);
+  if (!payload) {
+    console.log('getChatbotIdFromJWT: failed to decode JWT');
+    return null;
+  }
+  
+  const chatbotId = payload.chatbot_id;
+  console.log('Chatbot ID extraído del JWT:', chatbotId);
+  return chatbotId ? chatbotId.toString() : null;
 }
 
 export function setThreadIdInBrowserCookies(threadId: string): void {
@@ -82,21 +122,23 @@ export async function getChatbotConfig(): Promise<ChatbotConfig | null> {
       return configCache;
     }
 
-    // Obtener JWT y chatbot_id de las cookies
+    // Obtener JWT token (que contiene el chatbot_id embebido)
     const jwtToken = await getTokenFromCookies();
-    const chatbotId = await getChatbotIdFromCookies();
-    
-    console.log('getChatbotConfig: jwt:', !!jwtToken, 'chatbot_id:', chatbotId);
     
     // Verificar que tenemos JWT token
     if (!jwtToken) {
-      console.log('getChatbotConfig: error - no JWT token');
+      console.error('❌ getChatbotConfig: No JWT token found');
       return null;
     }
 
-    // Verificar que tenemos chatbot_id
+    // Extraer chatbot_id del JWT
+    const chatbotId = await getChatbotIdFromJWT();
+    
+    console.log('🔍 getChatbotConfig: jwt:', !!jwtToken, 'chatbot_id extraído del JWT:', chatbotId);
+    
+    // Verificar que pudimos extraer chatbot_id del JWT
     if (!chatbotId) {
-      console.log('getChatbotConfig: error - no chatbot_id');
+      console.error('❌ getChatbotConfig: No se pudo extraer chatbot_id del JWT - token inválido');
       return null;
     }
 
