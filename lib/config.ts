@@ -23,6 +23,11 @@ export type ChatbotConfig = {
   rag_collections: number[];
 };
 
+export type JWTPayload = {
+  chatbot_id: number;
+  [key: string]: unknown;
+};
+
 // ============================================================================
 // FUNCIONES DE COOKIES
 // ============================================================================
@@ -36,7 +41,7 @@ export async function getTokenFromCookies() {
 /**
  * Decodifica un JWT y extrae el payload
  */
-function decodeJWT(token: string): any {
+function decodeJWT(token: string): JWTPayload | null {
   try {
     // Un JWT tiene la estructura: header.payload.signature
     const parts = token.split('.');
