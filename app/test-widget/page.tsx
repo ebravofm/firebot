@@ -87,7 +87,7 @@ export default function TestWidgetPage() {
           <h2 className="text-xl font-semibold mb-4">Instrucciones de Uso</h2>
           <div className="space-y-2 text-gray-600">
             <p>1. Ingresa un JWT válido en el campo de arriba</p>
-            <p>2. Haz clic en "Cargar Widget con JWT"</p>
+            <p>2. Haz clic en &quot;Cargar Widget con JWT&quot;</p>
             <p>3. El widget aparecerá como un botón flotante en la esquina inferior derecha</p>
             <p>4. También puedes acceder directamente con: <code className="bg-gray-100 px-2 py-1 rounded">/test-widget?jwt=TU_JWT_AQUI</code></p>
           </div>
