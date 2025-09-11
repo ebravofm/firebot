@@ -101,55 +101,63 @@ export async function saveChat({
   chatId: string;
   messages: UIMessage[];
 }): Promise<void> {
-  console.log(`[saveChat] Attempting to save chat with ID: ${chatId}`);
-  console.log(`[saveChat] Total messages received:`, messages.length);
+  console.log(`[saveChat] Attempting to save ${messages.length} messages one by one for chatId: ${chatId}`);
   
-  // 1) Deduplicar por id dentro del lote recibido
-  const seenIds = new Set<string>();
-  const uniqueById = messages.filter((m) => {
-    if (!m.id) return true;
-    if (seenIds.has(m.id)) return false;
-    seenIds.add(m.id);
-    return true;
-  });
+  const results = {
+    successful: 0,
+    failed: 0,
+    skipped: 0,
+    errors: [] as Array<{id: string, error: string}>
+  };
 
-  // 2) FILTRO ÚNICO: Verificar IDs existentes en BD
-  const messageIdsToInsert = uniqueById.map(m => m.id);
-  const { data: existingIds } = await supabase
-    .from("messages")
-    .select("id")
-    .in("id", messageIdsToInsert);
+  for (const message of messages) {
+    try {
+      // Verificar si ya existe
+      const { data: existing } = await supabase
+        .from("messages")
+        .select("id")
+        .eq("id", message.id)
+        .single();
 
-  // 3) Filtrar y preparar para inserción
-  const existingIdSet = new Set(existingIds?.map(m => m.id) || []);
-  const trulyNewMessages = uniqueById.filter(m => !existingIdSet.has(m.id));
-  
-  console.log(`[saveChat] Found ${existingIds?.length || 0} existing IDs, filtering to ${trulyNewMessages.length} truly new messages`);
-  
-  if (trulyNewMessages.length === 0) {
-    console.log(`[saveChat] No new messages to save`);
-    return;
+      if (existing) {
+        results.skipped++;
+        console.log(`[saveChat] Message ${message.id} already exists, skipping`);
+        continue;
+      }
+
+      // Insertar mensaje individual
+      const { error } = await supabase
+        .from("messages")
+        .insert({
+          id: message.id,
+          thread_id: chatId,
+          role: message.role,
+          content: extractTextContent(message),
+          parts: message.parts,
+        });
+
+      if (error) {
+        throw error;
+      }
+
+      results.successful++;
+      console.log(`[saveChat] Successfully saved message ${message.id}`);
+      
+    } catch (error) {
+      results.failed++;
+      results.errors.push({
+        id: message.id,
+        error: error.message
+      });
+      console.error(`[saveChat] Failed to save message ${message.id}:`, error.message);
+    }
   }
 
-  // 4) Preparar e insertar solo los nuevos
-  const messagesToInsert = trulyNewMessages.map(msg => ({
-    id: msg.id, // Preservar el ID del frontend
-    thread_id: chatId,
-    role: msg.role,
-    content: extractTextContent(msg), // Extraer contenido de texto para búsquedas
-    parts: msg.parts, // Guardar las partes completas del mensaje
-  }));
-
-  console.log(`[saveChat] Inserting messages:`, messagesToInsert);
-
-  const { error } = await supabase.from("messages").insert(messagesToInsert);
-
-  if (error) {
-    console.error("[saveChat] Database error:", error);
-    throw new Error(error.message);
+  // Log final
+  console.log(`[saveChat] Completed: ${results.successful} successful, ${results.skipped} skipped, ${results.failed} failed`);
+  if (results.errors.length > 0) {
+    console.warn(`[saveChat] Errors:`, results.errors);
   }
-
-  console.log(`[saveChat] Successfully saved ${messagesToInsert.length} new messages`);
 }
 
 
