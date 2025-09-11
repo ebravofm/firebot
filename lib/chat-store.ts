@@ -145,11 +145,12 @@ export async function saveChat({
       
     } catch (error) {
       results.failed++;
+      const errorMessage = error instanceof Error ? error.message : String(error);
       results.errors.push({
         id: message.id,
-        error: error.message
+        error: errorMessage
       });
-      console.error(`[saveChat] Failed to save message ${message.id}:`, error.message);
+      console.error(`[saveChat] Failed to save message ${message.id}:`, errorMessage);
     }
   }
 
