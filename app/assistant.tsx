@@ -25,6 +25,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DropdownMenuOptions } from "@/components/DropdownMenuOptions";
 import { InfoModal } from "@/components/InfoModal";
+import { supabase } from "@/lib/supabase-client";
 
 export const Assistant = ({
   chatId,
@@ -44,6 +45,7 @@ export const Assistant = ({
   const chat = useChat({ id: chatId, messages: initialMessages });
   const runtime = useAISDKRuntime(chat);
   const router = useRouter();
+  const [takenByHuman, setTakenByHuman] = useState<boolean>(false);
 
   // Estado: tamaño de fuente (zoom)
   const [fontSize, setFontSize] = useState<number>(() => {
@@ -135,6 +137,134 @@ export const Assistant = ({
     simulateStreamingMessage(openingMessage);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chat.id, openingMessage]);
+
+  // Suscripción en tiempo real a nuevos mensajes y cambios del thread
+  useEffect(() => {
+    if (!chatId) return;
+
+    let isMounted = true;
+    let messagesChannel: ReturnType<typeof supabase.channel> | null = null;
+    let threadChannel: ReturnType<typeof supabase.channel> | null = null;
+
+    // Cargar estado inicial del thread
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from('threads')
+          .select('id, taken_by_user_system')
+          .eq('id', chatId)
+          .single();
+        if (!isMounted) return;
+        setTakenByHuman(!!data?.taken_by_user_system);
+      } catch (e) {
+        console.warn('[Assistant] failed to fetch initial thread state', e);
+      }
+    })();
+
+    const isHumanProvider = (parts: unknown[]): boolean => {
+      if (!Array.isArray(parts)) return false;
+      return parts.some((p: unknown) => {
+        if (!p || typeof p !== 'object') return false;
+        const pm = (p as { providerMetadata?: { human?: unknown } }).providerMetadata;
+        return !!(pm && 'human' in pm);
+      });
+    };
+
+    const isAIProvider = (parts: unknown[]): boolean => {
+      if (!Array.isArray(parts)) return false;
+      return parts.some((p: unknown) => {
+        if (!p || typeof p !== 'object') return false;
+        const obj = p as { providerMetadata?: { openai?: unknown }; type?: string };
+        return !!(obj.providerMetadata && 'openai' in obj.providerMetadata) || obj.type === 'step-start';
+      });
+    };
+
+    const hasTextPart = (parts: unknown[]): boolean => {
+      if (!Array.isArray(parts)) return false;
+      return parts.some((p: unknown) => {
+        if (!p || typeof p !== 'object') return false;
+        const obj = p as { type?: string; text?: string };
+        return obj.type === 'text' && typeof obj.text === 'string' && obj.text.length > 0;
+      });
+    };
+
+    const coerceParts = (raw: unknown): unknown[] => {
+      if (Array.isArray(raw)) return raw;
+      if (typeof raw === 'string') {
+        const trimmed = raw.trim();
+        if ((trimmed.startsWith('[') && trimmed.endsWith(']')) || (trimmed.startsWith('{') && trimmed.endsWith('}'))) {
+          try { const parsed = JSON.parse(trimmed); return Array.isArray(parsed) ? parsed : [parsed]; } catch { /* fallthrough */ }
+        }
+        // string plano: crear part de texto
+        return [{ type: 'text', text: raw }];
+      }
+      if (raw && typeof raw === 'object') return [raw as unknown];
+      return [];
+    };
+
+    // Primero, suscribir a cambios del thread (por si cambia el control humano)
+    threadChannel = supabase
+      .channel(`thread-${chatId}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'threads', filter: `id=eq.${chatId}` }, (payload) => {
+        if (!isMounted) return;
+        const newRow = payload.new as { taken_by_user_system?: number | null };
+        const taken = newRow?.taken_by_user_system != null;
+        setTakenByHuman(taken);
+        console.log('[Assistant] thread updated, taken_by_user_system:', taken);
+      })
+      .subscribe();
+
+    // Luego, suscribir a inserts de mensajes del hilo
+    messagesChannel = supabase
+      .channel(`messages-thread-${chatId}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `thread_id=eq.${chatId}` }, (payload) => {
+        if (!isMounted) return;
+        const row = payload.new as { id: string; role: string; parts: unknown; content?: string };
+        const parts = coerceParts(row.parts ?? row.content);
+
+        // Filtrar coherente con la lógica del cliente: mostrar user siempre; assistant según proveedor
+        if (row.role === 'assistant') {
+          if (takenByHuman) {
+            // Humano activo: solo mensajes con metadata humana
+            if (!isHumanProvider(parts)) return;
+          } else {
+            // IA activa: permitir cualquier assistant; si no hay parts válidos, crear desde content
+            // No filtramos por provider para no perder mensajes que lleguen solo con texto
+            if (!hasTextPart(parts)) {
+              // si no hay part de texto, intentar crear uno desde content ya hecho por coerceParts
+            }
+          }
+        }
+
+        // Asegurar que siempre haya al menos un part de texto visible
+        const contentText = (() => {
+          const candidate = (payload.new as { content?: unknown })?.content;
+          return typeof candidate === 'string' ? candidate : '';
+        })();
+        const finalParts = hasTextPart(parts)
+          ? parts
+          : [{ type: 'text', text: contentText }];
+
+        const incoming = {
+          id: row.id,
+          role: (row.role as 'system' | 'user' | 'assistant'),
+          parts: finalParts,
+        } as UIMessage;
+
+        // Evitar duplicados por id
+        chat.setMessages((prev) => {
+          if (prev.some((m) => m.id === incoming.id)) return prev;
+          return [...prev, incoming];
+        });
+      })
+      .subscribe();
+
+    return () => {
+      isMounted = false;
+      if (messagesChannel) supabase.removeChannel(messagesChannel);
+      if (threadChannel) supabase.removeChannel(threadChannel);
+    };
+  }, [chat, chatId, takenByHuman]);
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
