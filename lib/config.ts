@@ -1,5 +1,5 @@
-import { cookies } from 'next/headers';
 import { ENV_CONFIG } from './env';
+import { getItem, setItem, removeItem, STORAGE_KEYS } from './storage';
 
 // ============================================================================
 // TIPOS
@@ -29,13 +29,22 @@ export type JWTPayload = {
 };
 
 // ============================================================================
-// FUNCIONES DE COOKIES
+// FUNCIONES DE JWT EN LOCALSTORAGE
 // ============================================================================
-export async function getTokenFromCookies() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get('jwt')?.value || null;
-  console.log('Token from cookies:', token);
+export function getTokenFromStorage(): string | null {
+  const token = getItem(STORAGE_KEYS.JWT);
+  console.log('Token from localStorage:', token ? '***' : null);
   return token;
+}
+
+export function setTokenInStorage(token: string): void {
+  setItem(STORAGE_KEYS.JWT, token);
+  console.log('🎫 JWT guardado en localStorage');
+}
+
+export function removeTokenFromStorage(): void {
+  removeItem(STORAGE_KEYS.JWT);
+  console.log('🗑️ JWT eliminado de localStorage');
 }
 
 /**
@@ -65,9 +74,8 @@ function decodeJWT(token: string): JWTPayload | null {
   }
 }
 
-export async function getChatbotIdFromJWT() {
-  const cookieStore = await cookies();
-  const jwtToken = cookieStore.get('jwt')?.value || null;
+export function getChatbotIdFromJWT(): string | null {
+  const jwtToken = getTokenFromStorage();
   
   if (!jwtToken) {
     console.log('getChatbotIdFromJWT: no JWT token found');
@@ -85,27 +93,16 @@ export async function getChatbotIdFromJWT() {
   return chatbotId ? chatbotId.toString() : null;
 }
 
-export function setThreadIdInBrowserCookies(threadId: string): void {
-  if (typeof window !== 'undefined') {
-    document.cookie = `thread_id=${threadId}; path=/; max-age=31536000`; // 1 año
-  }
+export function setThreadIdInStorage(threadId: string): void {
+  setItem(STORAGE_KEYS.THREAD_ID, threadId);
 }
 
-export function getThreadIdFromBrowserCookies(): string | null {
-  if (typeof window !== 'undefined') {
-    const cookies = document.cookie.split(';');
-    const threadCookie = cookies.find(cookie => cookie.trim().startsWith('thread_id='));
-    if (threadCookie) {
-      return threadCookie.split('=')[1];
-    }
-  }
-  return null;
+export function getThreadIdFromStorage(): string | null {
+  return getItem(STORAGE_KEYS.THREAD_ID);
 }
 
-export function removeThreadIdFromBrowserCookies(): void {
-  if (typeof window !== 'undefined') {
-    document.cookie = 'thread_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-  }
+export function removeThreadIdFromStorage(): void {
+  removeItem(STORAGE_KEYS.THREAD_ID);
 }
 
 // ============================================================================
@@ -127,8 +124,8 @@ export async function getChatbotConfig(): Promise<ChatbotConfig | null> {
       return configCache;
     }
 
-    // Obtener JWT token (que contiene el chatbot_id embebido)
-    const jwtToken = await getTokenFromCookies();
+    // Obtener JWT token de localStorage
+    const jwtToken = getTokenFromStorage();
     
     // Verificar que tenemos JWT token
     if (!jwtToken) {
@@ -137,7 +134,7 @@ export async function getChatbotConfig(): Promise<ChatbotConfig | null> {
     }
 
     // Extraer chatbot_id del JWT
-    const chatbotId = await getChatbotIdFromJWT();
+    const chatbotId = getChatbotIdFromJWT();
     
     console.log('🔍 getChatbotConfig: jwt:', !!jwtToken, 'chatbot_id extraído del JWT:', chatbotId);
     

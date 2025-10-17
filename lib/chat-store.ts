@@ -1,6 +1,6 @@
 import { type UIMessage } from "ai";
 import { supabase } from "../lib/supabase-client";
-import { setThreadIdInBrowserCookies, getChatbotConfig } from "../lib/config";
+import { setThreadIdInStorage, getChatbotConfig } from "../lib/config";
 
 interface DatabaseMessage {
   id: string;
@@ -44,8 +44,8 @@ export async function createChat(): Promise<string> {
     throw new Error(error.message);
   }
 
-  // Guardar el thread_id en cookies del navegador
-  setThreadIdInBrowserCookies(data.id);
+  // Guardar el thread_id en localStorage del navegador
+  setThreadIdInStorage(data.id);
 
   return data.id;
 }
