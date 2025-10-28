@@ -159,14 +159,6 @@ export const Assistant = ({
       });
     };
 
-    const isAIProvider = (parts: unknown[]): boolean => {
-      if (!Array.isArray(parts)) return false;
-      return parts.some((p: unknown) => {
-        if (!p || typeof p !== 'object') return false;
-        const obj = p as { providerMetadata?: { openai?: unknown }; type?: string };
-        return !!(obj.providerMetadata && 'openai' in obj.providerMetadata) || obj.type === 'step-start';
-      });
-    };
 
     const hasTextPart = (parts: unknown[]): boolean => {
       if (!Array.isArray(parts)) return false;

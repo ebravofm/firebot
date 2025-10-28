@@ -29,15 +29,8 @@ export type JWTPayload = {
 };
 
 // ============================================================================
-// FUNCIONES DE COOKIES
+// FUNCIONES DE JWT
 // ============================================================================
-export async function getTokenFromCookies() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get('jwt')?.value || null;
-  console.log('Token from cookies:', token);
-  return token;
-}
-
 /**
  * Decodifica un JWT y extrae el payload.
  * Esta función es universal (cliente/servidor).
@@ -81,29 +74,6 @@ function getChatbotIdFromJWT(jwtToken: string): string | null {
   const chatbotId = payload.chatbot_id;
   console.log('Chatbot ID extraído del JWT:', chatbotId);
   return chatbotId ? chatbotId.toString() : null;
-}
-
-export function setThreadIdInBrowserCookies(threadId: string): void {
-  if (typeof window !== 'undefined') {
-    document.cookie = `thread_id=${threadId}; path=/; max-age=31536000`; // 1 año
-  }
-}
-
-export function getThreadIdFromBrowserCookies(): string | null {
-  if (typeof window !== 'undefined') {
-    const cookies = document.cookie.split(';');
-    const threadCookie = cookies.find(cookie => cookie.trim().startsWith('thread_id='));
-    if (threadCookie) {
-      return threadCookie.split('=')[1];
-    }
-  }
-  return null;
-}
-
-export function removeThreadIdFromBrowserCookies(): void {
-  if (typeof window !== 'undefined') {
-    document.cookie = 'thread_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-  }
 }
 
 // ============================================================================

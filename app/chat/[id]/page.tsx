@@ -1,6 +1,6 @@
 "use client";
 
-import { UIMessage } from "ai/react";
+import type { UIMessage } from "ai";
 import { useEffect, useState } from "react";
 import { Assistant } from "@/app/assistant";
 import { storage } from "@/lib/storage";
