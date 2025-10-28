@@ -65,9 +65,9 @@ export const Assistant = ({
   const handleZoomIn = () => setFontSize((prev) => Math.min(prev + 2, 32));
   const handleZoomOut = () => setFontSize((prev) => Math.max(prev - 2, 10));
 
-  // Reiniciar chat: limpiar localStorage y navegar a /chat para crear nuevo thread
+  // Reiniciar chat: eliminar solo thread_id y navegar a /chat para crear nuevo thread
   const handleResetChat = async () => {
-    storage.clear();
+    storage.removeThreadId();
     router.push("/chat");
   };
 

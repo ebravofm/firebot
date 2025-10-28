@@ -31,6 +31,11 @@ export const storage = {
       localStorage.setItem('thread_id', id);
     }
   },
+  removeThreadId: (): void => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('thread_id');
+    }
+  },
 
   // --- Font Size (Zoom) ---
   getFontSize: (): number => {
