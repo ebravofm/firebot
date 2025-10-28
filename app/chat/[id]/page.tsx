@@ -6,7 +6,7 @@ import { Assistant } from "@/app/assistant";
 import { storage } from "@/lib/storage";
 import { getChatbotConfig, ChatbotConfig } from "@/lib/config";
 import { loadChat } from "@/lib/chat-store";
-import { redirect } from "next/navigation";
+import { redirect, useParams } from "next/navigation";
 
 // Definimos una versión cliente de getChatbotConfig
 async function getChatbotConfigClient(): Promise<ChatbotConfig | null> {
@@ -28,8 +28,9 @@ async function getChatbotConfigClient(): Promise<ChatbotConfig | null> {
 }
 
 
-export default function Page({ params }: { params: { id: string } }) {
-  const { id } = params;
+export default function Page() {
+  const params = useParams<{ id: string }>();
+  const id = params.id;
   const [messages, setMessages] = useState<UIMessage[]>([]);
   const [chatbotConfig, setChatbotConfig] = useState<ChatbotConfig | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -43,10 +44,14 @@ export default function Page({ params }: { params: { id: string } }) {
         return;
       }
       setChatbotConfig(config);
-      storage.setThreadId(id);
 
-      const loadedMessages = await loadChat(id);
-      setMessages(loadedMessages);
+      // Solo guardar el threadId si es válido
+      if (id) {
+        storage.setThreadId(id);
+        const loadedMessages = await loadChat(id);
+        setMessages(loadedMessages);
+      }
+      
       setIsLoading(false);
     }
 
