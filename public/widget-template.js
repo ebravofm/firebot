@@ -227,7 +227,11 @@
     if (chatIframe) return; // Si ya existe, no crear otro
     
     chatIframe = document.createElement('iframe');
-    chatIframe.src = widgetConfig.baseUrl;
+
+    // Añadimos el JWT a la URL del iframe si existe
+    const iframeSrc = jwt ? `${widgetConfig.baseUrl}?jwt=${jwt}` : widgetConfig.baseUrl;
+    chatIframe.src = iframeSrc;
+    
     Object.assign(chatIframe.style, {
       width: '100%',
       height: '100%',

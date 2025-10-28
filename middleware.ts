@@ -2,42 +2,27 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
-  // Obtener parámetros de URL
   const url = new URL(request.url);
   const jwtFromUrl = url.searchParams.get('jwt');
-  const existingJwtCookie = request.cookies.get('jwt')?.value;
-  
+
   // Si estamos en la página de error, permitir acceso
   if (url.pathname === '/error-access') {
     return NextResponse.next();
   }
-  
-  // Verificar si tenemos JWT (en URL o en cookie)
-  if (!jwtFromUrl && !existingJwtCookie) {
-    console.log('❌ No JWT found - redirecting to error page');
-    return NextResponse.redirect(new URL('/error-access', request.url));
+
+  // En el modo iframe, el JWT *debe* venir en la URL en la primera carga.
+  // No se usan cookies para evitar problemas de bloqueo de terceros.
+  // Las cargas/navegaciones posteriores dentro del iframe usarán el JWT 
+  // guardado en localStorage por el cliente.
+  if (!jwtFromUrl && url.pathname !== '/chat') {
+     // Permitimos el acceso a /chat sin JWT en la URL para que pueda crear un nuevo chat
+     // luego de un reset, por ejemplo. La protección real estará en las páginas
+     // que intenten cargar datos.
   }
   
-  const response = NextResponse.next();
-  
-  // Determinar si estamos en producción
-  const isProduction = process.env.NODE_ENV === 'production';
-  
-  // Guardar JWT en cookie si existe en URL
-  // El JWT ahora contiene el chatbot_id embebido, no necesitamos parámetro separado
-  if (jwtFromUrl) {
-    response.cookies.set('jwt', jwtFromUrl, {
-      path: '/',
-      maxAge: 86400, // 24 horas
-      httpOnly: false, // Permitir acceso desde JavaScript si es necesario
-      secure: isProduction, // HTTPS en producción
-      sameSite: 'lax'
-    });
-    
-    console.log('🎫 JWT widget token guardado en cookie');
-  }
-  
-  return response;
+  // El middleware ya no necesita establecer cookies. El cliente se encargará
+  // de leer el JWT de la URL y guardarlo en localStorage.
+  return NextResponse.next();
 }
 
 export const config = {

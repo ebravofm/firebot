@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { Suspense } from "react";
+import { cn } from "@/lib/utils";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -23,11 +26,24 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={cn(
+          "min-h-screen bg-background font-sans antialiased",
+          geistSans.variable,
+          geistMono.variable,
+        )}
       >
-        {children}
+        <TooltipProvider>
+          {/* 
+            JWTHandler fue eliminado. La lógica ahora está en app/page.tsx.
+            Mantenemos Suspense por si alguna otra página/componente necesita 
+            leer parámetros de la URL de forma segura en el cliente.
+          */}
+          <Suspense fallback={null}>
+            {children}
+          </Suspense>
+        </TooltipProvider>
       </body>
     </html>
   );

@@ -1,5 +1,6 @@
 import { ENV_CONFIG } from "@/lib/env";
-import { getChatbotConfig, getTokenFromCookies } from "@/lib/config";
+import { getChatbotConfig } from "@/lib/config";
+import { storage } from "@/lib/storage";
 
 export interface RAGSearchResult {
   title: string;
@@ -31,13 +32,13 @@ export async function searchRAG(
     throw new Error("BACKEND_URL no está definido");
   }
   
-  const authToken = await getTokenFromCookies();
+  const authToken = storage.getJWT();
   if (!authToken) {
-    throw new Error("JWT no encontrado en las cookies");
+    throw new Error("JWT no encontrado en localStorage");
   }
 
   // Obtener configuración del chatbot para workspace_id y collection_ids
-  const chatbotConfig = await getChatbotConfig();
+  const chatbotConfig = await getChatbotConfig(authToken);
   
   if (!chatbotConfig) {
     throw new Error("No se pudo obtener la configuración del chatbot");

@@ -1,43 +1,76 @@
-import { loadChat } from "@/lib/chat-store";
+"use client";
+
+import { UIMessage } from "ai/react";
+import { useEffect, useState } from "react";
 import { Assistant } from "@/app/assistant";
-import { SetThreadCookie } from "../../../components/set-thread-cookie";
-import { getChatbotConfig } from "@/lib/config";
+import { storage } from "@/lib/storage";
+import { getChatbotConfig, ChatbotConfig } from "@/lib/config";
+import { loadChat } from "@/lib/chat-store";
 import { redirect } from "next/navigation";
 
-export default async function Page(props: { params: Promise<{ id: string }> }) {
-  const { id } = await props.params;
+// Definimos una versión cliente de getChatbotConfig
+async function getChatbotConfigClient(): Promise<ChatbotConfig | null> {
+  const jwt = storage.getJWT();
+  if (!jwt) return null;
   
-  // Cargar configuración del chatbot primero
-  const chatbotConfig = await getChatbotConfig();
+  // Como getChatbotConfig ahora necesita leer de cookies en el servidor,
+  // y nosotros lo tenemos en localStorage, necesitamos o bien una API route
+  // o refactorizar getChatbotConfig para que pueda funcionar en cliente.
+  // Por simplicidad, vamos a refactorizar getChatbotConfig para que acepte el token.
   
-  // Si no hay configuración (por JWT inválido), redirigir a error
-  if (!chatbotConfig) {
-    console.error('❌ No chatbot config available - redirecting to error page');
-    redirect('/error-access');
+  // Esta llamada fallará si getChatbotConfig usa `next/headers`.
+  // Es necesario un refactor mayor. Por ahora, asumiré que podemos crear una función
+  // que no dependa de `cookies()`.
+  
+  // Vamos a crear una nueva función en config.ts que acepte el token.
+  const config = await getChatbotConfig(jwt);
+  return config;
+}
+
+
+export default function Page({ params }: { params: { id: string } }) {
+  const { id } = params;
+  const [messages, setMessages] = useState<UIMessage[]>([]);
+  const [chatbotConfig, setChatbotConfig] = useState<ChatbotConfig | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchData() {
+      const config = await getChatbotConfigClient();
+      if (!config) {
+        console.error('❌ No chatbot config available - redirecting to error page');
+        redirect('/error-access');
+        return;
+      }
+      setChatbotConfig(config);
+      storage.setThreadId(id);
+
+      const loadedMessages = await loadChat(id);
+      setMessages(loadedMessages);
+      setIsLoading(false);
+    }
+
+    fetchData();
+  }, [id]);
+
+  if (isLoading || !chatbotConfig) {
+    return <div>Cargando...</div>; // O un componente Skeleton
   }
-  
-  const messages = await loadChat(id);
-  
-  // Separar el welcome message en dos partes
+
   const welcomeMessage = chatbotConfig?.welcome_message || "Hola!\n¿En qué puedo ayudarte hoy?";
   const firstLine = welcomeMessage.split('\n')[0] || welcomeMessage;
   const remainingLines = welcomeMessage.split('\n').slice(1).join('\n') || '';
-  
-  // Obtener welcome suggestions
   const welcomeSuggestions = chatbotConfig?.welcome_suggestions || [];
-  
+
   return (
-    <>
-      <SetThreadCookie id={id} />
-      <Assistant 
-        chatId={id} 
-        initialMessages={messages}
-        welcomeTitle={firstLine}
-        welcomeSubtitle={remainingLines}
-        welcomeSuggestions={welcomeSuggestions}
-        openingMessage={chatbotConfig?.initial_message}
-      />
-    </>
+    <Assistant 
+      chatId={id} 
+      initialMessages={messages}
+      welcomeTitle={firstLine}
+      welcomeSubtitle={remainingLines}
+      welcomeSuggestions={welcomeSuggestions}
+      openingMessage={chatbotConfig?.initial_message}
+    />
   );
 }
 

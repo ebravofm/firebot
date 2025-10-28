@@ -1,21 +1,37 @@
-import { redirect } from "next/navigation";
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { createChat } from "@/lib/chat-store";
-import { getChatbotConfig } from "@/lib/config";
+import { storage } from "@/lib/storage";
 
-// Forzar renderizado dinámico para evitar errores de prerenderizado
-export const dynamic = 'force-dynamic';
+export default function CreateChatPage() {
+  const router = useRouter();
 
-export default async function Page() {
-  // Verificar configuración antes de crear chat
-  const chatbotConfig = await getChatbotConfig();
-  if (!chatbotConfig) {
-    console.error('❌ No chatbot config available - redirecting to error page');
-    redirect('/error-access');
-  }
-  
-  // Crear chat y redirigir (sin try-catch para no interceptar NEXT_REDIRECT)
-  const id = await createChat();
-  redirect(`/chat/${id}`);
+  useEffect(() => {
+    async function initializeChat() {
+      // Primero, nos aseguramos de tener un JWT. Si no, no podemos crear un chat.
+      const jwt = storage.getJWT();
+      if (!jwt) {
+        console.error("No JWT found in storage, redirecting to error page.");
+        router.replace("/error-access");
+        return;
+      }
+      
+      try {
+        const id = await createChat();
+        router.replace(`/chat/${id}`);
+      } catch (error) {
+        console.error("Failed to create chat:", error);
+        // Opcional: redirigir a una página de error más específica
+        router.replace("/error-access");
+      }
+    }
+
+    initializeChat();
+  }, [router]);
+
+  return <div>Creando nuevo chat...</div>; // O un spinner
 }
 
 

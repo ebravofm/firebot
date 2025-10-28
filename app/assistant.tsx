@@ -26,6 +26,7 @@ import { useRouter } from "next/navigation";
 import { DropdownMenuOptions } from "@/components/DropdownMenuOptions";
 import { InfoModal } from "@/components/InfoModal";
 import { supabase } from "@/lib/supabase-client";
+import { storage } from "@/lib/storage";
 
 export const Assistant = ({
   chatId,
@@ -48,37 +49,25 @@ export const Assistant = ({
   const [takenByHuman, setTakenByHuman] = useState<boolean>(false);
 
   // Estado: tamaño de fuente (zoom)
-  const [fontSize, setFontSize] = useState<number>(() => {
-    if (typeof window !== "undefined") {
-      const cookies = document.cookie.split(';');
-      const fontSizeCookie = cookies.find(cookie => cookie.trim().startsWith('fontSize='));
-      return fontSizeCookie ? parseInt(fontSizeCookie.split('=')[1], 10) : 16;
-    }
-    return 16;
-  });
+  const [fontSize, setFontSize] = useState<number>(storage.getFontSize());
 
   // Estado: modal de información
   const [isInfoModalOpen, setIsInfoModalOpen] = useState<boolean>(false);
 
-  // Aplicar zoom al body y persistir en cookies
+  // Aplicar zoom al body y persistir en localStorage
   useEffect(() => {
     if (typeof document !== "undefined") {
       document.body.style.fontSize = `${fontSize}px`;
-      document.cookie = `fontSize=${fontSize}; path=/; max-age=31536000`;
+      storage.setFontSize(fontSize);
     }
   }, [fontSize]);
 
   const handleZoomIn = () => setFontSize((prev) => Math.min(prev + 2, 32));
   const handleZoomOut = () => setFontSize((prev) => Math.max(prev - 2, 10));
 
-  // Reiniciar chat: limpiar cookies y navegar a /chat para crear nuevo thread
+  // Reiniciar chat: limpiar localStorage y navegar a /chat para crear nuevo thread
   const handleResetChat = async () => {
-    if (typeof window !== 'undefined') {
-      document.cookie = 'thread_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-    }
-      if (typeof document !== "undefined") {
-      document.cookie = 'fontSize=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-    }
+    storage.clear();
     router.push("/chat");
   };
 

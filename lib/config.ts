@@ -1,4 +1,4 @@
-import { cookies } from 'next/headers';
+import { storage } from './storage';
 import { ENV_CONFIG } from './env';
 
 // ============================================================================
@@ -39,7 +39,8 @@ export async function getTokenFromCookies() {
 }
 
 /**
- * Decodifica un JWT y extrae el payload
+ * Decodifica un JWT y extrae el payload.
+ * Esta función es universal (cliente/servidor).
  */
 function decodeJWT(token: string): JWTPayload | null {
   try {
@@ -65,12 +66,9 @@ function decodeJWT(token: string): JWTPayload | null {
   }
 }
 
-export async function getChatbotIdFromJWT() {
-  const cookieStore = await cookies();
-  const jwtToken = cookieStore.get('jwt')?.value || null;
-  
+function getChatbotIdFromJWT(jwtToken: string): string | null {
   if (!jwtToken) {
-    console.log('getChatbotIdFromJWT: no JWT token found');
+    console.log('getChatbotIdFromJWT: no JWT token provided');
     return null;
   }
   
@@ -118,7 +116,7 @@ const CACHE_TTL = 1000 * 60 * 5; // 5 minutos
 // ============================================================================
 // FUNCIONES DE CONFIGURACIÓN DEL CHATBOT
 // ============================================================================
-export async function getChatbotConfig(): Promise<ChatbotConfig | null> {
+export async function getChatbotConfig(jwtToken?: string | null): Promise<ChatbotConfig | null> {
   try {
     // Verificar caché
     const now = Date.now();
@@ -127,21 +125,18 @@ export async function getChatbotConfig(): Promise<ChatbotConfig | null> {
       return configCache;
     }
 
-    // Obtener JWT token (que contiene el chatbot_id embebido)
-    const jwtToken = await getTokenFromCookies();
+    // El token debe ser provisto explícitamente o se obtiene de localStorage en el cliente.
+    // Si jwtToken es null/undefined, la llamada a storage.getJWT() solo funcionará
+    // en un entorno de cliente.
+    const token = jwtToken ?? (typeof window !== 'undefined' ? storage.getJWT() : null);
     
-    // Verificar que tenemos JWT token
-    if (!jwtToken) {
+    if (!token) {
       console.error('❌ getChatbotConfig: No JWT token found');
       return null;
     }
 
-    // Extraer chatbot_id del JWT
-    const chatbotId = await getChatbotIdFromJWT();
+    const chatbotId = getChatbotIdFromJWT(token);
     
-    console.log('🔍 getChatbotConfig: jwt:', !!jwtToken, 'chatbot_id extraído del JWT:', chatbotId);
-    
-    // Verificar que pudimos extraer chatbot_id del JWT
     if (!chatbotId) {
       console.error('❌ getChatbotConfig: No se pudo extraer chatbot_id del JWT - token inválido');
       return null;
@@ -154,7 +149,7 @@ export async function getChatbotConfig(): Promise<ChatbotConfig | null> {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${jwtToken}`,
+        "Authorization": `Bearer ${token}`,
       },
     });
 
@@ -165,7 +160,6 @@ export async function getChatbotConfig(): Promise<ChatbotConfig | null> {
 
     const data: ChatbotConfig = await response.json();
     
-    // Actualizar caché
     configCache = data;
     lastFetchTime = now;
     
