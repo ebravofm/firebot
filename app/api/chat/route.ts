@@ -52,7 +52,11 @@ export async function POST(req: Request) {
 
   // Usar waitUntil si está disponible (Next.js 15+ en Vercel) para mantener la función viva
   // durante el guardado asíncrono después de enviar la respuesta
-  const waitUntil = (req as any).waitUntil || ((promise: Promise<any>) => {
+  type WaitUntilFunction = (promise: Promise<unknown>) => void;
+  interface RequestWithWaitUntil extends Request {
+    waitUntil?: WaitUntilFunction;
+  }
+  const waitUntil: WaitUntilFunction = (req as RequestWithWaitUntil).waitUntil || ((promise: Promise<unknown>) => {
     // Fallback: ejecutar la promesa pero no bloquear
     promise.catch((error) => {
       console.error("[API] Error in background task:", error);

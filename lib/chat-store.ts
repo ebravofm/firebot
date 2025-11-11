@@ -210,7 +210,7 @@ export async function saveChat({
     results.successful = insertedData?.length || messagesToInsert.length;
     console.log(`[saveChat] Successfully saved ${results.successful} messages in batch`);
     
-  } catch (batchError) {
+  } catch {
     // Fallback: insertar uno por uno si el batch falla
     console.log(`[saveChat] Falling back to individual inserts`);
     
