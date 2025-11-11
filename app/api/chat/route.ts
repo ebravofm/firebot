@@ -50,6 +50,15 @@ export async function POST(req: Request) {
   const agentParams = { messages };
   const result = await streamReactAgent({ messages: agentParams.messages });
 
+  // Usar waitUntil si está disponible (Next.js 15+ en Vercel) para mantener la función viva
+  // durante el guardado asíncrono después de enviar la respuesta
+  const waitUntil = (req as any).waitUntil || ((promise: Promise<any>) => {
+    // Fallback: ejecutar la promesa pero no bloquear
+    promise.catch((error) => {
+      console.error("[API] Error in background task:", error);
+    });
+  });
+
   return result.toUIMessageStreamResponse({
     originalMessages: messages,
     generateMessageId: createIdGenerator({ size: 16 }),
@@ -58,7 +67,26 @@ export async function POST(req: Request) {
       console.log(`[API] Messages in onFinish:`, messages.map(m => ({ id: m.id, role: m.role, content: m.parts?.find(p => p.type === 'text')?.text?.substring(0, 50) })));
       
       if (chatId) {
-        void saveChat({ chatId, messages });
+        // Usar waitUntil para mantener la función viva en Vercel hasta que termine el guardado
+        const savePromise = saveChat({ chatId, messages }).catch((error) => {
+          console.error("[API] Failed to save messages in onFinish:", error);
+          // Reintentar una vez después de 1 segundo
+          return new Promise((resolve) => {
+            setTimeout(() => {
+              saveChat({ chatId, messages })
+                .then(() => {
+                  console.log("[API] Retry save successful");
+                  resolve(undefined);
+                })
+                .catch((retryError) => {
+                  console.error("[API] Retry save failed:", retryError);
+                  resolve(undefined);
+                });
+            }, 1000);
+          });
+        });
+        
+        waitUntil(savePromise);
       }
     },
   });
