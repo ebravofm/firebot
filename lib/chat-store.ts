@@ -141,6 +141,77 @@ export async function loadChat(id: string): Promise<UIMessage[]> {
   return deduped;
 }
 
+// Función helper para procesar un solo mensaje (usada en Promise.all)
+async function processMessage(
+  message: UIMessage,
+  chatId: string,
+  index: number,
+  total: number
+): Promise<{ success: boolean; skipped: boolean; error?: string; messageId: string }> {
+  const messageStartTime = Date.now();
+  const messageTimestamp = new Date().toISOString();
+  const messageId = message.id;
+  
+  console.log(`[${messageTimestamp}] [saveChat:MSG:${index + 1}/${total}] Processing message ${messageId} (role: ${message.role})`);
+  
+  try {
+    // Verificar si ya existe
+    console.log(`[${messageTimestamp}] [saveChat:MSG:${index + 1}/${total}] Checking if message ${messageId} already exists...`);
+    const checkStartTime = Date.now();
+    const { data: existing, error: checkError } = await supabase
+      .from("messages")
+      .select("id")
+      .eq("id", messageId)
+      .single();
+    const checkDuration = Date.now() - checkStartTime;
+    
+    if (checkError && checkError.code !== 'PGRST116') {
+      // PGRST116 es "no rows returned", que es esperado si no existe
+      console.error(`[${messageTimestamp}] [saveChat:MSG:${index + 1}/${total}] Error checking existence:`, checkError);
+      throw checkError;
+    }
+
+    if (existing) {
+      console.log(`[${messageTimestamp}] [saveChat:MSG:${index + 1}/${total}] Message ${messageId} already exists (check took ${checkDuration}ms), skipping`);
+      return { success: true, skipped: true, messageId };
+    }
+
+    console.log(`[${messageTimestamp}] [saveChat:MSG:${index + 1}/${total}] Message ${messageId} does not exist, inserting...`);
+    
+    // Insertar mensaje individual
+    const insertStartTime = Date.now();
+    const { error } = await supabase
+      .from("messages")
+      .insert({
+        id: messageId,
+        thread_id: chatId,
+        role: message.role,
+        content: extractTextContent(message),
+        parts: message.parts,
+      });
+    const insertDuration = Date.now() - insertStartTime;
+
+    if (error) {
+      console.error(`[${messageTimestamp}] [saveChat:MSG:${index + 1}/${total}] Insert error after ${insertDuration}ms:`, error);
+      throw error;
+    }
+
+    const messageDuration = Date.now() - messageStartTime;
+    console.log(`[${messageTimestamp}] [saveChat:MSG:${index + 1}/${total}] Successfully saved message ${messageId} (total time: ${messageDuration}ms, insert: ${insertDuration}ms)`);
+    
+    return { success: true, skipped: false, messageId };
+    
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const messageDuration = Date.now() - messageStartTime;
+    console.error(`[${messageTimestamp}] [saveChat:MSG:${index + 1}/${total}] Failed to save message ${messageId} after ${messageDuration}ms:`, errorMessage);
+    if (error instanceof Error && error.stack) {
+      console.error(`[${messageTimestamp}] [saveChat:MSG:${index + 1}/${total}] Error stack:`, error.stack);
+    }
+    return { success: false, skipped: false, error: errorMessage, messageId };
+  }
+}
+
 export async function saveChat({
   chatId,
   messages,
@@ -148,63 +219,61 @@ export async function saveChat({
   chatId: string;
   messages: UIMessage[];
 }): Promise<void> {
-  console.log(`[saveChat] Attempting to save ${messages.length} messages one by one for chatId: ${chatId}`);
+  const saveStartTime = Date.now();
+  const saveTimestamp = new Date().toISOString();
   
-  const results = {
+  console.log(`[${saveTimestamp}] [saveChat:START] ========== saveChat STARTED (PARALLEL MODE) ==========`);
+  console.log(`[${saveTimestamp}] [saveChat:INPUT] chatId: ${chatId}, messages count: ${messages.length}`);
+  console.log(`[${saveTimestamp}] [saveChat:INPUT] message IDs:`, messages.map(m => m.id));
+  
+  // Usar Promise.all() para procesar todos los mensajes en PARALELO
+  console.log(`[${saveTimestamp}] [saveChat:PARALLEL] Starting Promise.all() for ${messages.length} messages...`);
+  const parallelStartTime = Date.now();
+  
+  const results = await Promise.all(
+    messages.map((message, index) => processMessage(message, chatId, index, messages.length))
+  );
+  
+  const parallelDuration = Date.now() - parallelStartTime;
+  console.log(`[${saveTimestamp}] [saveChat:PARALLEL] Promise.all() completed in ${parallelDuration}ms`);
+  
+  // Procesar resultados
+  const summary = {
     successful: 0,
     failed: 0,
     skipped: 0,
     errors: [] as Array<{id: string, error: string}>
   };
-
-  for (const message of messages) {
-    try {
-      // Verificar si ya existe
-      const { data: existing } = await supabase
-        .from("messages")
-        .select("id")
-        .eq("id", message.id)
-        .single();
-
-      if (existing) {
-        results.skipped++;
-        console.log(`[saveChat] Message ${message.id} already exists, skipping`);
-        continue;
-      }
-
-      // Insertar mensaje individual
-      const { error } = await supabase
-        .from("messages")
-        .insert({
-          id: message.id,
-          thread_id: chatId,
-          role: message.role,
-          content: extractTextContent(message),
-          parts: message.parts,
+  
+  results.forEach((result) => {
+    if (result.skipped) {
+      summary.skipped++;
+    } else if (result.success) {
+      summary.successful++;
+    } else {
+      summary.failed++;
+      if (result.error) {
+        summary.errors.push({
+          id: result.messageId,
+          error: result.error
         });
-
-      if (error) {
-        throw error;
       }
-
-      results.successful++;
-      console.log(`[saveChat] Successfully saved message ${message.id}`);
-      
-    } catch (error) {
-      results.failed++;
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      results.errors.push({
-        id: message.id,
-        error: errorMessage
-      });
-      console.error(`[saveChat] Failed to save message ${message.id}:`, errorMessage);
     }
-  }
+  });
 
+  const totalDuration = Date.now() - saveStartTime;
+  const finalTimestamp = new Date().toISOString();
+  
   // Log final
-  console.log(`[saveChat] Completed: ${results.successful} successful, ${results.skipped} skipped, ${results.failed} failed`);
-  if (results.errors.length > 0) {
-    console.warn(`[saveChat] Errors:`, results.errors);
+  console.log(`[${finalTimestamp}] [saveChat:COMPLETE] ========== saveChat COMPLETED ==========`);
+  console.log(`[${finalTimestamp}] [saveChat:COMPLETE] Total duration: ${totalDuration}ms (parallel execution: ${parallelDuration}ms)`);
+  console.log(`[${finalTimestamp}] [saveChat:COMPLETE] Results: ${summary.successful} successful, ${summary.skipped} skipped, ${summary.failed} failed`);
+  if (summary.errors.length > 0) {
+    console.warn(`[${finalTimestamp}] [saveChat:COMPLETE] Errors encountered:`, summary.errors);
+  }
+  
+  if (summary.failed > 0) {
+    throw new Error(`Failed to save ${summary.failed} message(s). Errors: ${JSON.stringify(summary.errors)}`);
   }
 }
 
