@@ -148,13 +148,8 @@ export async function saveChat({
   chatId: string;
   messages: UIMessage[];
 }): Promise<void> {
-  console.log(`[saveChat] Attempting to save ${messages.length} messages for chatId: ${chatId}`);
+  console.log(`[saveChat] Attempting to save ${messages.length} messages one by one for chatId: ${chatId}`);
   
-  if (messages.length === 0) {
-    console.log(`[saveChat] No messages to save`);
-    return;
-  }
-
   const results = {
     successful: 0,
     failed: 0,
@@ -162,90 +157,47 @@ export async function saveChat({
     errors: [] as Array<{id: string, error: string}>
   };
 
-  // Primero, verificar cuáles mensajes ya existen (batch check)
-  const messageIds = messages.map(m => m.id);
-  const { data: existingMessages, error: checkError } = await supabase
-    .from("messages")
-    .select("id")
-    .in("id", messageIds);
+  for (const message of messages) {
+    try {
+      // Verificar si ya existe
+      const { data: existing } = await supabase
+        .from("messages")
+        .select("id")
+        .eq("id", message.id)
+        .single();
 
-  if (checkError) {
-    console.error(`[saveChat] Error checking existing messages:`, checkError);
-    // Continuar de todas formas, la verificación individual fallará si hay duplicados
-  }
-
-  const existingIds = new Set((existingMessages || []).map(m => m.id));
-
-  // Preparar mensajes para insertar (filtrar los que ya existen)
-  const messagesToInsert = messages
-    .filter(m => !existingIds.has(m.id))
-    .map(message => ({
-      id: message.id,
-      thread_id: chatId,
-      role: message.role,
-      content: extractTextContent(message),
-      parts: message.parts,
-    }));
-
-  results.skipped = messages.length - messagesToInsert.length;
-
-  if (messagesToInsert.length === 0) {
-    console.log(`[saveChat] All messages already exist, skipping insert`);
-    return;
-  }
-
-  // Intentar insertar en batch primero (más rápido y eficiente)
-  try {
-    const { error: batchError, data: insertedData } = await supabase
-      .from("messages")
-      .insert(messagesToInsert)
-      .select("id");
-
-    if (batchError) {
-      // Si el batch falla, intentar uno por uno como fallback
-      console.warn(`[saveChat] Batch insert failed, falling back to individual inserts:`, batchError);
-      throw batchError;
-    }
-
-    results.successful = insertedData?.length || messagesToInsert.length;
-    console.log(`[saveChat] Successfully saved ${results.successful} messages in batch`);
-    
-  } catch {
-    // Fallback: insertar uno por uno si el batch falla
-    console.log(`[saveChat] Falling back to individual inserts`);
-    
-    for (const message of messages) {
-      if (existingIds.has(message.id)) {
+      if (existing) {
+        results.skipped++;
+        console.log(`[saveChat] Message ${message.id} already exists, skipping`);
         continue;
       }
 
-      try {
-        const { error } = await supabase
-          .from("messages")
-          .insert({
-            id: message.id,
-            thread_id: chatId,
-            role: message.role,
-            content: extractTextContent(message),
-            parts: message.parts,
-          });
-
-        if (error) {
-          throw error;
-        }
-
-        results.successful++;
-        console.log(`[saveChat] Successfully saved message ${message.id}`);
-        
-      } catch (error) {
-        results.failed++;
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        results.errors.push({
+      // Insertar mensaje individual
+      const { error } = await supabase
+        .from("messages")
+        .insert({
           id: message.id,
-          error: errorMessage
+          thread_id: chatId,
+          role: message.role,
+          content: extractTextContent(message),
+          parts: message.parts,
         });
-        console.error(`[saveChat] Failed to save message ${message.id}:`, errorMessage);
+
+      if (error) {
+        throw error;
       }
+
+      results.successful++;
+      console.log(`[saveChat] Successfully saved message ${message.id}`);
+      
+    } catch (error) {
+      results.failed++;
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      results.errors.push({
+        id: message.id,
+        error: errorMessage
+      });
+      console.error(`[saveChat] Failed to save message ${message.id}:`, errorMessage);
     }
   }
 
@@ -253,11 +205,6 @@ export async function saveChat({
   console.log(`[saveChat] Completed: ${results.successful} successful, ${results.skipped} skipped, ${results.failed} failed`);
   if (results.errors.length > 0) {
     console.warn(`[saveChat] Errors:`, results.errors);
-  }
-
-  // Si hubo errores, lanzar excepción para que el retry funcione
-  if (results.failed > 0 && results.successful === 0) {
-    throw new Error(`Failed to save ${results.failed} messages. Errors: ${results.errors.map(e => e.error).join(', ')}`);
   }
 }
 

@@ -3,6 +3,30 @@ import { saveChat } from "@/lib/chat-store";
 import { supabase } from "@/lib/supabase-client";
 import { streamReactAgent } from "@/lib/agents/react-agent";
 
+// Configurar runtime para Vercel (Node.js tiene mejor soporte para tareas en segundo plano)
+export const runtime = 'nodejs';
+export const maxDuration = 60; // 60 segundos máximo para funciones Pro
+
+// Tipo para waitUntil de Vercel
+type WaitUntilFunction = (promise: Promise<unknown>) => void;
+
+// Helper para obtener waitUntil en Vercel (compatible con diferentes entornos)
+function getWaitUntil(): WaitUntilFunction | undefined {
+  // En Vercel, waitUntil puede estar disponible en diferentes lugares según el runtime
+  // Intentar múltiples formas de acceso usando type guards seguros
+  const globalObj = globalThis as unknown as Record<string, unknown>;
+  if (typeof globalObj.waitUntil === 'function') {
+    return globalObj.waitUntil as WaitUntilFunction;
+  }
+  // En algunos casos puede estar en process.env o en el contexto de la request
+  const processObj = process as unknown as Record<string, unknown>;
+  if (typeof processObj.waitUntil === 'function') {
+    return processObj.waitUntil as WaitUntilFunction;
+  }
+  // Fallback: retornar undefined si no está disponible (desarrollo local)
+  return undefined;
+}
+
 export async function POST(req: Request) {
   const body = await req.json();
   const messages: UIMessage[] = body.messages ?? [];
@@ -50,18 +74,8 @@ export async function POST(req: Request) {
   const agentParams = { messages };
   const result = await streamReactAgent({ messages: agentParams.messages });
 
-  // Usar waitUntil si está disponible (Next.js 15+ en Vercel) para mantener la función viva
-  // durante el guardado asíncrono después de enviar la respuesta
-  type WaitUntilFunction = (promise: Promise<unknown>) => void;
-  interface RequestWithWaitUntil extends Request {
-    waitUntil?: WaitUntilFunction;
-  }
-  const waitUntil: WaitUntilFunction = (req as RequestWithWaitUntil).waitUntil || ((promise: Promise<unknown>) => {
-    // Fallback: ejecutar la promesa pero no bloquear
-    promise.catch((error) => {
-      console.error("[API] Error in background task:", error);
-    });
-  });
+  // Obtener waitUntil si está disponible (Vercel)
+  const waitUntil = getWaitUntil();
 
   return result.toUIMessageStreamResponse({
     originalMessages: messages,
@@ -71,26 +85,20 @@ export async function POST(req: Request) {
       console.log(`[API] Messages in onFinish:`, messages.map(m => ({ id: m.id, role: m.role, content: m.parts?.find(p => p.type === 'text')?.text?.substring(0, 50) })));
       
       if (chatId) {
-        // Usar waitUntil para mantener la función viva en Vercel hasta que termine el guardado
+        // Crear una promesa para el guardado con manejo de errores mejorado
         const savePromise = saveChat({ chatId, messages }).catch((error) => {
-          console.error("[API] Failed to save messages in onFinish:", error);
-          // Reintentar una vez después de 1 segundo
-          return new Promise((resolve) => {
-            setTimeout(() => {
-              saveChat({ chatId, messages })
-                .then(() => {
-                  console.log("[API] Retry save successful");
-                  resolve(undefined);
-                })
-                .catch((retryError) => {
-                  console.error("[API] Retry save failed:", retryError);
-                  resolve(undefined);
-                });
-            }, 1000);
-          });
+          console.error(`[API] Error saving messages in onFinish for chatId ${chatId}:`, error);
+          // Re-lanzar para que waitUntil pueda detectar el error si es necesario
+          throw error;
         });
-        
-        waitUntil(savePromise);
+
+        // En Vercel, usar waitUntil para asegurar que complete antes de que termine la función
+        if (waitUntil) {
+          waitUntil(savePromise);
+        } else {
+          // En desarrollo local, usar void pero con mejor logging
+          void savePromise;
+        }
       }
     },
   });
