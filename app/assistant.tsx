@@ -43,7 +43,13 @@ export const Assistant = ({
   welcomeSuggestions: Array<{ label: string; title: string; action: string }>;
   openingMessage?: string;
 }) => {
-  const chat = useChat({ id: chatId, messages: initialMessages });
+  // Obtener JWT una vez al montar el componente
+  // const jwtToken = storage.getJWT();
+  
+  const chat = useChat({ 
+    id: chatId, 
+    messages: initialMessages,
+  });
   const runtime = useAISDKRuntime(chat);
   const router = useRouter();
   const [takenByHuman, setTakenByHuman] = useState<boolean>(false);

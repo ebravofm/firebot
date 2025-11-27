@@ -36,8 +36,10 @@ export async function POST(req: Request) {
   const body = await req.json();
   const messages: UIMessage[] = body.messages ?? [];
   const chatId: string | undefined = body.chatId ?? body.id;
+  const jwtToken: string | undefined = body.jwtToken ?? req.headers.get('authorization')?.replace('Bearer ', '');
   
   console.log(`[${timestamp}] [API:INPUT] chatId: ${chatId}, messages count: ${messages.length}`);
+  console.log(`[${timestamp}] [API:INPUT] JWT token provided: ${jwtToken ? 'YES' : 'NO'}`);
   console.log(`[${timestamp}] [API:INPUT] messages:`, messages.map(m => ({ 
     id: m.id, 
     role: m.role, 
@@ -90,8 +92,8 @@ export async function POST(req: Request) {
   }
   
   console.log(`[${Date.now() - startTime}ms] [API:AGENT] Starting streamReactAgent...`);
-  const agentParams = { messages };
-  const result = await streamReactAgent({ messages: agentParams.messages });
+  const agentParams = { messages, jwtToken };
+  const result = await streamReactAgent({ messages: agentParams.messages, jwtToken });
   console.log(`[${Date.now() - startTime}ms] [API:AGENT] streamReactAgent completed, creating response stream`);
 
   // Obtener waitUntil si está disponible (Vercel)

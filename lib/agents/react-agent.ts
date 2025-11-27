@@ -3,11 +3,18 @@ import { streamText, convertToModelMessages, type UIMessage, stepCountIs } from 
 import { createRagSearchTool } from "@/lib/agents/tools/rag-search";
 import { getChatbotConfig } from "@/lib/config";
 
-export async function streamReactAgent({ messages }: { messages: UIMessage[] }) {
+export async function streamReactAgent({ 
+  messages, 
+  jwtToken 
+}: { 
+  messages: UIMessage[];
+  jwtToken?: string | null;
+}) {
   const ragSearch = createRagSearchTool();
 
   // Obtener configuración del chatbot para el system prompt
-  const chatbotConfig = await getChatbotConfig();
+  // Pasar el JWT token si está disponible (desde el servidor)
+  const chatbotConfig = await getChatbotConfig(jwtToken);
   const systemPrompt = chatbotConfig?.system_prompt || 
     "Eres un asistente que razona con el patrón ReAct. " +
     "Cuando lo necesites, usa la herramienta 'rag_search' para buscar contexto. " +
