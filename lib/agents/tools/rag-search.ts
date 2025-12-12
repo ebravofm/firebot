@@ -2,7 +2,13 @@ import { tool } from "ai";
 import { z } from "zod";
 import { searchRAG } from "@/lib/api/rag";
 
-export function createRagSearchTool({ maxResults = 3 }: { maxResults?: number } = {}) {
+export function createRagSearchTool({ 
+  maxResults = 3,
+  threadId 
+}: { 
+  maxResults?: number;
+  threadId?: string;
+} = {}) {
   return tool({
     description:
       "Search relevant documents via RAG. Returns a plain-text list with title, content, and similarity.",
@@ -12,6 +18,7 @@ export function createRagSearchTool({ maxResults = 3 }: { maxResults?: number } 
         const response = await searchRAG({
           query,
           top_k: maxResults,
+          threadId, // Pasar threadId si está disponible
         });
 
         const results = response.data || [];

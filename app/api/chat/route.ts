@@ -92,8 +92,12 @@ export async function POST(req: Request) {
   }
   
   console.log(`[${Date.now() - startTime}ms] [API:AGENT] Starting streamReactAgent...`);
-  const agentParams = { messages, jwtToken };
-  const result = await streamReactAgent({ messages: agentParams.messages, jwtToken });
+  const agentParams = { messages, jwtToken, chatId };
+  const result = await streamReactAgent({ 
+    messages: agentParams.messages, 
+    jwtToken: agentParams.jwtToken,
+    chatId: agentParams.chatId 
+  });
   console.log(`[${Date.now() - startTime}ms] [API:AGENT] streamReactAgent completed, creating response stream`);
 
   // Obtener waitUntil si está disponible (Vercel)

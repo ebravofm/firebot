@@ -5,12 +5,15 @@ import { getChatbotConfig } from "@/lib/config";
 
 export async function streamReactAgent({ 
   messages, 
-  jwtToken 
+  jwtToken,
+  chatId 
 }: { 
   messages: UIMessage[];
   jwtToken?: string | null;
+  chatId?: string;
 }) {
-  const ragSearch = createRagSearchTool();
+  // Crear la herramienta RAG con threadId si está disponible
+  const ragSearch = createRagSearchTool({ threadId: chatId });
 
   // Obtener configuración del chatbot para el system prompt
   // Pasar el JWT token si está disponible (desde el servidor)
