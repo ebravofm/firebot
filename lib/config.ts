@@ -1,5 +1,6 @@
 import { storage } from './storage';
 import { ENV_CONFIG } from './env';
+import { supabase } from './supabase-client';
 
 // ============================================================================
 // TIPOS
@@ -86,6 +87,64 @@ const CACHE_TTL = 1000 * 60 * 5; // 5 minutos
 // ============================================================================
 // FUNCIONES DE CONFIGURACIÓN DEL CHATBOT
 // ============================================================================
+
+/**
+ * Obtiene la configuración del chatbot desde Supabase usando el threadId.
+ * Usa thread.chatbot_id para consultar chatbot_config directamente.
+ * Esta ruta evita la dependencia del JWT y del backend HTTP en el servidor.
+ */
+export async function getChatbotConfigFromThread(threadId: string): Promise<ChatbotConfig | null> {
+  try {
+    const { data: thread, error: threadError } = await supabase
+      .from("threads")
+      .select("workspace_id, chatbot_id")
+      .eq("id", threadId)
+      .single();
+
+    if (threadError || !thread) {
+      console.error("getChatbotConfigFromThread: error obteniendo thread:", threadError);
+      return null;
+    }
+
+    if (!thread.chatbot_id) {
+      console.error("getChatbotConfigFromThread: thread sin chatbot_id");
+      return null;
+    }
+
+    const { data: config, error: configError } = await supabase
+      .from("chatbot_config")
+      .select("id, workspace_id, name, description, primary_language_id, created_at, updated_at, system_prompt, welcome_message, initial_message, welcome_suggestions, rag_collections")
+      .eq("id", thread.chatbot_id)
+      .single();
+
+    if (configError || !config) {
+      console.error("getChatbotConfigFromThread: error obteniendo chatbot_config:", configError);
+      return null;
+    }
+
+    const result: ChatbotConfig = {
+      id: config.id,
+      workspace_id: config.workspace_id,
+      name: config.name ?? "",
+      description: config.description ?? "",
+      primary_language_id: config.primary_language_id,
+      created_at: config.created_at ?? "",
+      updated_at: config.updated_at ?? "",
+      system_prompt: config.system_prompt ?? "",
+      welcome_message: config.welcome_message ?? "",
+      initial_message: config.initial_message ?? "",
+      welcome_suggestions: Array.isArray(config.welcome_suggestions) ? config.welcome_suggestions : [],
+      rag_collections: config.rag_collections ?? [],
+    };
+
+    console.log("getChatbotConfigFromThread: configuración obtenida desde Supabase");
+    return result;
+  } catch (error) {
+    console.error("getChatbotConfigFromThread: error:", error instanceof Error ? error.message : "unknown");
+    return null;
+  }
+}
+
 export async function getChatbotConfig(jwtToken?: string | null): Promise<ChatbotConfig | null> {
   try {
     // Verificar caché

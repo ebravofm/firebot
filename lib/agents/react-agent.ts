@@ -1,7 +1,7 @@
 import { openai } from "@ai-sdk/openai";
 import { streamText, convertToModelMessages, type UIMessage, stepCountIs } from "ai";
 import { createRagSearchTool } from "@/lib/agents/tools/rag-search";
-import { getChatbotConfig } from "@/lib/config";
+import { getChatbotConfig, getChatbotConfigFromThread } from "@/lib/config";
 
 export async function streamReactAgent({ 
   messages, 
@@ -15,9 +15,12 @@ export async function streamReactAgent({
   // Crear la herramienta RAG con threadId si está disponible
   const ragSearch = createRagSearchTool({ threadId: chatId });
 
-  // Obtener configuración del chatbot para el system prompt
-  // Pasar el JWT token si está disponible (desde el servidor)
-  const chatbotConfig = await getChatbotConfig(jwtToken);
+  // Obtener configuración del chatbot para el system prompt.
+  // Prioridad: si hay chatId, usar Supabase directamente (evita JWT/backend en servidor).
+  // Fallback: getChatbotConfig con JWT (fetch al backend).
+  const chatbotConfig = chatId
+    ? await getChatbotConfigFromThread(chatId)
+    : await getChatbotConfig(jwtToken);
   const systemPrompt = chatbotConfig?.system_prompt || 
     "Eres un asistente que razona con el patrón ReAct. " +
     "Cuando lo necesites, usa la herramienta 'rag_search' para buscar contexto. " +
