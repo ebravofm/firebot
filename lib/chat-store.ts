@@ -53,21 +53,7 @@ export async function createChat(): Promise<string> {
 
 export async function loadChat(id: string): Promise<UIMessage[]> {
   console.log(`[loadChat] Attempting to load chat with ID: ${id}`);
-  
-  // Determinar si el thread está tomado por humano
-  const { data: thread, error: threadError } = await supabase
-    .from("threads")
-    .select("id, taken_by_user_system")
-    .eq("id", id)
-    .single();
 
-  if (threadError) {
-    console.error("[loadChat] Error fetching thread:", threadError);
-    throw new Error(threadError.message);
-  }
-
-  const isTakenByHuman = thread?.taken_by_user_system != null;
-  
   const { data, error } = await supabase
     .from("messages")
     .select("id, role, content, parts")
@@ -107,27 +93,23 @@ export async function loadChat(id: string): Promise<UIMessage[]> {
     });
   };
 
-  // Filtrar coherentemente según quién responde
+  // Filtrar mensajes relevantes: siempre mostrar la conversación completa
+  // (tanto respuestas de IA como de operadores humanos)
   const relevant = messages.filter((m) => {
     const isRelevantRole = m.role === 'user' || m.role === 'assistant';
     if (!isRelevantRole) return false;
     const text = extractTextContent(m).trim();
     if (text.length === 0) return false;
 
+    // Los mensajes de usuario siempre se muestran
+    if (m.role === 'user') return true;
+
     // El mensaje de apertura (opening) siempre se muestra; no tiene metadata de proveedor
     if (m.id === 'opening-message' && m.role === 'assistant') return true;
 
-    // Si está tomado por humano, solo mostrar mensajes del humano (assistant con metadata human)
-    if (isTakenByHuman) {
-      if (m.role === 'assistant') {
-        return isHumanProvider(m.parts as unknown[]);
-      }
-      return true; // Los mensajes de usuario siempre se muestran
-    }
-
-    // Si responde IA, solo mostrar assistant con metadata IA
+    // Mensajes assistant: mostrar tanto los de IA como los de operador humano
     if (m.role === 'assistant') {
-      return isAIProvider(m.parts as unknown[]);
+      return isAIProvider(m.parts as unknown[]) || isHumanProvider(m.parts as unknown[]);
     }
     return true;
   });

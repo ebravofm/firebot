@@ -1,0 +1,14 @@
+diff --git a/node_modules/@assistant-ui/react-ai-sdk/dist/ui/use-chat/useAISDKRuntime.js b/node_modules/@assistant-ui/react-ai-sdk/dist/ui/use-chat/useAISDKRuntime.js
+index 36aa176..8e1c4e5 100644
+--- a/node_modules/@assistant-ui/react-ai-sdk/dist/ui/use-chat/useAISDKRuntime.js
++++ b/node_modules/@assistant-ui/react-ai-sdk/dist/ui/use-chat/useAISDKRuntime.js
+@@ -14,7 +14,8 @@ import { useExternalHistory } from "./useExternalHistory.js";
+ var useAISDKRuntime = (chatHelpers, adapter = {}) => {
+   const messages = AISDKMessageConverter.useThreadMessages({
+     isRunning: chatHelpers.status === "submitted" || chatHelpers.status == "streaming",
+-    messages: chatHelpers.messages
++    messages: chatHelpers.messages,
++    joinStrategy: "none"
+   });
+   const isLoading = useExternalHistory(
+     {
