@@ -42,5 +42,5 @@ export default function Home() {
     }
   }, [isReadyForRedirect, router]);
 
-  return <div>Cargando...</div>;
+  return null;
 }
