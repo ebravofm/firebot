@@ -10,10 +10,13 @@ interface LoadingSpinnerProps {
   speedMultiplier?: number;
 }
 
+// Color principal de scrivot-front (chatColor por defecto)
+const SCRIVOT_PRIMARY = "#5B4FFF";
+
 export function LoadingSpinner({
   message = "Cargando conversación...",
   size = 50,
-  color = "#f6c201",
+  color = SCRIVOT_PRIMARY,
   speedMultiplier = 1,
 }: LoadingSpinnerProps) {
   return (
