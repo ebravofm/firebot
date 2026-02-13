@@ -114,6 +114,9 @@ export async function loadChat(id: string): Promise<UIMessage[]> {
     const text = extractTextContent(m).trim();
     if (text.length === 0) return false;
 
+    // El mensaje de apertura (opening) siempre se muestra; no tiene metadata de proveedor
+    if (m.id === 'opening-message' && m.role === 'assistant') return true;
+
     // Si está tomado por humano, solo mostrar mensajes del humano (assistant con metadata human)
     if (isTakenByHuman) {
       if (m.role === 'assistant') {
