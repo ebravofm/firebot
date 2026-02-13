@@ -2,11 +2,13 @@
 
 import type { UIMessage } from "ai";
 import { useEffect, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { Assistant } from "@/app/assistant";
 import { storage } from "@/lib/storage";
 import { getChatbotConfig, ChatbotConfig } from "@/lib/config";
 import { loadChat } from "@/lib/chat-store";
 import { redirect, useParams } from "next/navigation";
+import { LoadingSpinner } from "@/components/LoadingSpinner";
 
 // Definimos una versión cliente de getChatbotConfig
 async function getChatbotConfigClient(): Promise<ChatbotConfig | null> {
@@ -58,24 +60,34 @@ export default function Page() {
     fetchData();
   }, [id]);
 
-  if (isLoading || !chatbotConfig) {
-    return <div>Cargando...</div>; // O un componente Skeleton
-  }
-
   const welcomeMessage = chatbotConfig?.welcome_message || "Hola!\n¿En qué puedo ayudarte hoy?";
   const firstLine = welcomeMessage.split('\n')[0] || welcomeMessage;
   const remainingLines = welcomeMessage.split('\n').slice(1).join('\n') || '';
   const welcomeSuggestions = chatbotConfig?.welcome_suggestions || [];
 
   return (
-    <Assistant 
-      chatId={id} 
-      initialMessages={messages}
-      welcomeTitle={firstLine}
-      welcomeSubtitle={remainingLines}
-      welcomeSuggestions={welcomeSuggestions}
-      openingMessage={chatbotConfig?.initial_message}
-    />
+    <AnimatePresence mode="wait">
+      {isLoading || !chatbotConfig ? (
+        <LoadingSpinner key="loading" message="Cargando conversación..." />
+      ) : (
+        <motion.div
+          key="assistant"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3, ease: "easeOut" }}
+          className="h-full w-full"
+        >
+          <Assistant
+            chatId={id}
+            initialMessages={messages}
+            welcomeTitle={firstLine}
+            welcomeSubtitle={remainingLines}
+            welcomeSuggestions={welcomeSuggestions}
+            openingMessage={chatbotConfig?.initial_message}
+          />
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 

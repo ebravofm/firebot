@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createChat } from "@/lib/chat-store";
 import { storage } from "@/lib/storage";
+import { LoadingSpinner } from "@/components/LoadingSpinner";
 
 export default function CreateChatPage() {
   const router = useRouter();
@@ -31,7 +32,7 @@ export default function CreateChatPage() {
     initializeChat();
   }, [router]);
 
-  return <div>Creando nuevo chat...</div>; // O un spinner
+  return <LoadingSpinner message="Creando nuevo chat..." />;
 }
 
 
