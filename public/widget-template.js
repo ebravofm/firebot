@@ -279,6 +279,13 @@
 
   chatButton.addEventListener('click', () => toggleChat());
 
+  // Permitir abrir el widget desde fuera (ej. botón "Probar Chatbot" en Scrivot)
+  window.addEventListener('scrivot-open-widget', () => toggleChat(true));
+  if (sessionStorage.getItem('scrivot-open-widget')) {
+    sessionStorage.removeItem('scrivot-open-widget');
+    setTimeout(function () { toggleChat(true); }, 150);
+  }
+
   window.addEventListener('message', function (event) {
     if (!isValidOrigin(event.origin)) return;
     switch (event.data.type) {
