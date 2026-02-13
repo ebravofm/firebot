@@ -1,9 +1,10 @@
 // ============================================================================
 // CONSTANTES DE ENTORNO DEL CLIENTE
 // ============================================================================
+// BACKEND_URL y WIDGET_URL: NEXT_PUBLIC_* se inlinan en el cliente (build); sin prefijo solo en servidor.
 export const ENV_CONFIG = {
-  BACKEND_URL: process.env.BACKEND_URL || 'http://localhost:8080',
-  WIDGET_URL: process.env.WIDGET_URL || 'http://localhost:3001',
+  BACKEND_URL: process.env.NEXT_PUBLIC_BACKEND_URL || process.env.BACKEND_URL || 'http://localhost:8080',
+  WIDGET_URL: process.env.NEXT_PUBLIC_WIDGET_URL || process.env.WIDGET_URL || 'http://localhost:3001',
   NEXT_PUBLIC_SHOW_SIDEBAR: process.env.NEXT_PUBLIC_SHOW_SIDEBAR === 'true' || false,
   NEXT_PUBLIC_SHOW_HEADER: process.env.NEXT_PUBLIC_SHOW_HEADER === 'true' || false,
   NEXT_PUBLIC_SHOW_ATTACH_FILE: process.env.NEXT_PUBLIC_SHOW_ATTACH_FILE === 'true' || false,
