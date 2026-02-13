@@ -120,6 +120,9 @@ export async function getChatbotConfig(jwtToken?: string | null): Promise<Chatbo
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${token}`,
+        ...(typeof document !== 'undefined' && document.referrer
+          ? { "X-Embedding-Origin": document.referrer }
+          : {}),
       },
     });
 
