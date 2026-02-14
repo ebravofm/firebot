@@ -32,6 +32,7 @@ export type ChatbotConfig = {
   enable_tool_fallback?: boolean | null;
   show_rag_results?: boolean | null;
   assistant_icon_url?: string | null;
+  openai_model?: string | null;
 };
 
 // ============================================================================
@@ -142,7 +143,7 @@ export async function getChatbotConfigFromThread(threadId: string): Promise<Chat
 
     const { data: config, error: configError } = await supabase
       .from("chatbot_config")
-      .select("id, workspace_id, name, description, primary_language_id, created_at, updated_at, system_prompt, welcome_message, initial_message, welcome_suggestions, rag_collections, show_sidebar, show_header, show_attach_file, show_edit_button, show_assistant_action_bar, composer_placeholder, enable_tool_fallback, show_rag_results, assistant_icon_url")
+      .select("id, workspace_id, name, description, primary_language_id, created_at, updated_at, system_prompt, welcome_message, initial_message, welcome_suggestions, rag_collections, show_sidebar, show_header, show_attach_file, show_edit_button, show_assistant_action_bar, composer_placeholder, enable_tool_fallback, show_rag_results, assistant_icon_url, openai_model")
       .eq("id", thread.chatbot_id)
       .single();
 
@@ -173,6 +174,7 @@ export async function getChatbotConfigFromThread(threadId: string): Promise<Chat
       enable_tool_fallback: config.enable_tool_fallback ?? undefined,
       show_rag_results: config.show_rag_results ?? undefined,
       assistant_icon_url: config.assistant_icon_url ?? undefined,
+      openai_model: config.openai_model ?? undefined,
     };
 
     console.log("getChatbotConfigFromThread: configuración obtenida desde Supabase");

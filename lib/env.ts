@@ -14,4 +14,5 @@ export const ENV_CONFIG = {
   NEXT_PUBLIC_ENABLE_TOOL_FALLBACK: process.env.NEXT_PUBLIC_ENABLE_TOOL_FALLBACK === 'true' || false,
   NEXT_PUBLIC_SHOW_RAG_RESULTS: process.env.NEXT_PUBLIC_SHOW_RAG_RESULTS === 'true' || false,
   NEXT_PUBLIC_ASSISTANT_ICON_URL: process.env.NEXT_PUBLIC_ASSISTANT_ICON_URL || '',
+  OPENAI_MODEL: process.env.OPENAI_MODEL || 'gpt-4o-mini-2024-07-18',
 } as const;
