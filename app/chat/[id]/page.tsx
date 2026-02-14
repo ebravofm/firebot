@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Assistant } from "@/app/assistant";
 import { storage } from "@/lib/storage";
 import { getChatbotConfig, ChatbotConfig } from "@/lib/config";
+import { ChatbotConfigProvider } from "@/lib/chatbot-config-context";
 import { loadChat } from "@/lib/chat-store";
 import { redirect, useParams } from "next/navigation";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
@@ -77,14 +78,16 @@ export default function Page() {
           transition={{ duration: 0.3, ease: "easeOut" }}
           className="h-full w-full"
         >
-          <Assistant
-            chatId={id}
-            initialMessages={messages}
-            welcomeTitle={firstLine}
-            welcomeSubtitle={remainingLines}
-            welcomeSuggestions={welcomeSuggestions}
-            openingMessage={chatbotConfig?.initial_message}
-          />
+          <ChatbotConfigProvider config={chatbotConfig}>
+            <Assistant
+              chatId={id}
+              initialMessages={messages}
+              welcomeTitle={firstLine}
+              welcomeSubtitle={remainingLines}
+              welcomeSuggestions={welcomeSuggestions}
+              openingMessage={chatbotConfig?.initial_message}
+            />
+          </ChatbotConfigProvider>
         </motion.div>
       )}
     </AnimatePresence>

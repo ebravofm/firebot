@@ -26,7 +26,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { MarkdownText } from "./markdown-text";
 import { ToolFallback } from "./tool-fallback";
-import { ENV_CONFIG } from "@/lib/env";
+import { useChatbotConfig } from "@/lib/chatbot-config-context";
 import { RagSearchToolUI } from "./rag-search-ui";
 
 export const Thread: FC<{ 
@@ -158,6 +158,7 @@ const ThreadWelcomeSuggestions: FC<{ welcomeSuggestions: Array<{ label: string; 
 };
 
 const Composer: FC<{ welcomeSuggestions: Array<{ label: string; title: string; action: string }> }> = ({ welcomeSuggestions }) => {
+  const { ui } = useChatbotConfig();
   return (
     // aui-composer-wrapper
     <div className="bg-background relative mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4 px-[var(--thread-padding-x)] pb-4 md:pb-6">
@@ -170,25 +171,27 @@ const Composer: FC<{ welcomeSuggestions: Array<{ label: string; title: string; a
         {/* aui-composer-input */}
         <div className="relative flex-1">
           <ComposerPrimitive.Input
-            placeholder={ENV_CONFIG.NEXT_PUBLIC_COMPOSER_PLACEHOLDER}
+            placeholder={ui.composer_placeholder}
             className={
-              `bg-muted border-border dark:border-muted-foreground/15 focus:outline-primary placeholder:text-muted-foreground max-h-[calc(50dvh)] min-h-[50px] w-full resize-none rounded-2xl border pl-16 pr-20 py-3 text-base outline-none`
+              `bg-muted border-border dark:border-muted-foreground/15 focus:outline-primary placeholder:text-muted-foreground max-h-[calc(50dvh)] min-h-[50px] w-full resize-none rounded-2xl border pr-20 py-3 text-base outline-none ${ui.show_attach_file ? 'pl-16' : 'pl-4'}`
             }
             rows={1}
             autoFocus
             aria-label="Message input"
           />
           {/* aui-composer-attachment-button */}
-          <TooltipIconButton
-            tooltip="Attach file"
-            variant="ghost"
-            className="absolute left-4 top-1/2 -translate-y-1/2 hover:bg-foreground/10 dark:hover:bg-background/30 p-2 rounded-lg"
-            onClick={() => {
-              console.log("Attachment clicked - not implemented");
-            }}
-          >
-            <PlusIcon className="h-4 w-4" />
-          </TooltipIconButton>
+          {ui.show_attach_file && (
+            <TooltipIconButton
+              tooltip="Attach file"
+              variant="ghost"
+              className="absolute left-4 top-1/2 -translate-y-1/2 hover:bg-foreground/10 dark:hover:bg-background/30 p-2 rounded-lg"
+              onClick={() => {
+                console.log("Attachment clicked - not implemented");
+              }}
+            >
+              <PlusIcon className="h-4 w-4" />
+            </TooltipIconButton>
+          )}
           
           {/* aui-composer-send-button */}
           <ThreadPrimitive.If running={false}>
@@ -237,6 +240,7 @@ const MessageError: FC = () => {
 };
 
 const AssistantMessage: FC = () => {
+  const { ui } = useChatbotConfig();
   return (
     <MessagePrimitive.Root asChild>
       <motion.div
@@ -247,8 +251,12 @@ const AssistantMessage: FC = () => {
         data-role="assistant"
       >
         {/* aui-assistant-message-avatar */}
-        <div className="ring-border bg-background col-start-1 row-start-1 flex size-8 shrink-0 items-center justify-center rounded-full ring-1">
-          <StarIcon size={14} />
+        <div className="ring-border bg-background col-start-1 row-start-1 flex size-8 shrink-0 items-center justify-center rounded-full ring-1 overflow-hidden">
+          {ui.assistant_icon_url ? (
+            <img src={ui.assistant_icon_url} alt="" className="size-full object-cover" />
+          ) : (
+            <StarIcon size={14} />
+          )}
         </div>
 
         {/* aui-assistant-message-content */}
@@ -260,7 +268,7 @@ const AssistantMessage: FC = () => {
                 by_name: {
                   rag_search: RagSearchToolUI,
                 },
-                ...(ENV_CONFIG.NEXT_PUBLIC_ENABLE_TOOL_FALLBACK
+                ...(ui.enable_tool_fallback
                   ? { Fallback: ToolFallback }
                   : {}),
               },
@@ -269,7 +277,7 @@ const AssistantMessage: FC = () => {
           <MessageError />
         </div>
 
-        {ENV_CONFIG.NEXT_PUBLIC_SHOW_ASSISTANT_ACTION_BAR && (
+        {ui.show_assistant_action_bar && (
           <AssistantActionBar />
         )}
 
@@ -333,6 +341,7 @@ const UserMessage: FC = () => {
 };
 
 const UserActionBar: FC = () => {
+  const { ui } = useChatbotConfig();
   return (
     <ActionBarPrimitive.Root
       hideWhenRunning
@@ -340,7 +349,7 @@ const UserActionBar: FC = () => {
       // aui-user-action-bar-root
       className="col-start-1 mt-2.5 mr-3 flex flex-col items-end"
     >
-      {ENV_CONFIG.NEXT_PUBLIC_SHOW_EDIT_BUTTON && (
+      {ui.show_edit_button && (
         <ActionBarPrimitive.Edit asChild>
           <TooltipIconButton tooltip="Edit">
             <PencilIcon />

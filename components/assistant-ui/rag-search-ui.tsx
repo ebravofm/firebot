@@ -1,5 +1,5 @@
 import { ToolCallContentPartComponent } from "@assistant-ui/react";
-import { ENV_CONFIG } from "@/lib/env";
+import { useChatbotConfig } from "@/lib/chatbot-config-context";
 import { useState } from "react";
 import { Button } from "../ui/button";
 import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
@@ -8,7 +8,8 @@ export const RagSearchToolUI: ToolCallContentPartComponent = ({
   result 
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(true);
-  const showResults = ENV_CONFIG.NEXT_PUBLIC_SHOW_RAG_RESULTS;
+  const { ui } = useChatbotConfig();
+  const showResults = ui.show_rag_results;
   
   // Si no se muestran resultados, solo texto simple
   if (!showResults) {

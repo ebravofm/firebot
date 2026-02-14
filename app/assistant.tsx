@@ -20,7 +20,7 @@ import {
 import { useChat } from '@ai-sdk/react'
 import type { UIMessage } from "ai";
 import { useAISDKRuntime } from "@assistant-ui/react-ai-sdk";
-import { ENV_CONFIG } from "@/lib/env";
+import { useChatbotConfig } from "@/lib/chatbot-config-context";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DropdownMenuOptions } from "@/components/DropdownMenuOptions";
@@ -43,6 +43,7 @@ export const Assistant = ({
   welcomeSuggestions: Array<{ label: string; title: string; action: string }>;
   openingMessage?: string;
 }) => {
+  const { ui } = useChatbotConfig();
   // Obtener JWT una vez al montar el componente
   // const jwtToken = storage.getJWT();
   
@@ -257,11 +258,11 @@ export const Assistant = ({
     <AssistantRuntimeProvider runtime={runtime}>
       <SidebarProvider>
         <div className="flex h-dvh w-full pr-0.5">
-          {ENV_CONFIG.NEXT_PUBLIC_SHOW_SIDEBAR && <AppSidebar />}
+          {ui.show_sidebar && <AppSidebar />}
           <SidebarInset>
-            {ENV_CONFIG.NEXT_PUBLIC_SHOW_HEADER && (
+            {ui.show_header && (
               <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-                {ENV_CONFIG.NEXT_PUBLIC_SHOW_SIDEBAR && (
+                {ui.show_sidebar && (
                   <>
                     <SidebarTrigger />
                     <Separator orientation="vertical" className="mr-2 h-4" />

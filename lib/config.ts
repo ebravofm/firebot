@@ -22,7 +22,36 @@ export type ChatbotConfig = {
     action: string;
   }>;
   rag_collections: number[];
+  // UI del widget (null/undefined = fallback a env)
+  show_sidebar?: boolean | null;
+  show_header?: boolean | null;
+  show_attach_file?: boolean | null;
+  show_edit_button?: boolean | null;
+  show_assistant_action_bar?: boolean | null;
+  composer_placeholder?: string | null;
+  enable_tool_fallback?: boolean | null;
+  show_rag_results?: boolean | null;
+  assistant_icon_url?: string | null;
 };
+
+// ============================================================================
+// RESOLUCIÓN DE CONFIG UI (BD preponderante, env fallback)
+// ============================================================================
+export function resolveUIConfig(config: ChatbotConfig | null) {
+  return {
+    show_sidebar: config?.show_sidebar ?? ENV_CONFIG.NEXT_PUBLIC_SHOW_SIDEBAR,
+    show_header: config?.show_header ?? ENV_CONFIG.NEXT_PUBLIC_SHOW_HEADER,
+    show_attach_file: config?.show_attach_file ?? ENV_CONFIG.NEXT_PUBLIC_SHOW_ATTACH_FILE,
+    show_edit_button: config?.show_edit_button ?? ENV_CONFIG.NEXT_PUBLIC_SHOW_EDIT_BUTTON,
+    show_assistant_action_bar: config?.show_assistant_action_bar ?? ENV_CONFIG.NEXT_PUBLIC_SHOW_ASSISTANT_ACTION_BAR,
+    composer_placeholder: config?.composer_placeholder ?? ENV_CONFIG.NEXT_PUBLIC_COMPOSER_PLACEHOLDER,
+    enable_tool_fallback: config?.enable_tool_fallback ?? ENV_CONFIG.NEXT_PUBLIC_ENABLE_TOOL_FALLBACK,
+    show_rag_results: config?.show_rag_results ?? ENV_CONFIG.NEXT_PUBLIC_SHOW_RAG_RESULTS,
+    assistant_icon_url: config?.assistant_icon_url ?? ENV_CONFIG.NEXT_PUBLIC_ASSISTANT_ICON_URL ?? '',
+  };
+}
+
+export type ResolvedUIConfig = ReturnType<typeof resolveUIConfig>;
 
 export type JWTPayload = {
   chatbot_id: number;
@@ -113,7 +142,7 @@ export async function getChatbotConfigFromThread(threadId: string): Promise<Chat
 
     const { data: config, error: configError } = await supabase
       .from("chatbot_config")
-      .select("id, workspace_id, name, description, primary_language_id, created_at, updated_at, system_prompt, welcome_message, initial_message, welcome_suggestions, rag_collections")
+      .select("id, workspace_id, name, description, primary_language_id, created_at, updated_at, system_prompt, welcome_message, initial_message, welcome_suggestions, rag_collections, show_sidebar, show_header, show_attach_file, show_edit_button, show_assistant_action_bar, composer_placeholder, enable_tool_fallback, show_rag_results, assistant_icon_url")
       .eq("id", thread.chatbot_id)
       .single();
 
@@ -135,6 +164,15 @@ export async function getChatbotConfigFromThread(threadId: string): Promise<Chat
       initial_message: config.initial_message ?? "",
       welcome_suggestions: Array.isArray(config.welcome_suggestions) ? config.welcome_suggestions : [],
       rag_collections: config.rag_collections ?? [],
+      show_sidebar: config.show_sidebar ?? undefined,
+      show_header: config.show_header ?? undefined,
+      show_attach_file: config.show_attach_file ?? undefined,
+      show_edit_button: config.show_edit_button ?? undefined,
+      show_assistant_action_bar: config.show_assistant_action_bar ?? undefined,
+      composer_placeholder: config.composer_placeholder ?? undefined,
+      enable_tool_fallback: config.enable_tool_fallback ?? undefined,
+      show_rag_results: config.show_rag_results ?? undefined,
+      assistant_icon_url: config.assistant_icon_url ?? undefined,
     };
 
     console.log("getChatbotConfigFromThread: configuración obtenida desde Supabase");
