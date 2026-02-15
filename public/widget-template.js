@@ -73,8 +73,11 @@
     setDynamicCSSVariables();
 
   const isValidOrigin = (origin) => {
-    const allowedOrigins = [widgetConfig.baseUrl];
-    return allowedOrigins.includes(origin);
+    try {
+      return origin === new URL(widgetConfig.baseUrl).origin;
+    } catch {
+      return false;
+    }
   };
 
   const chatButtonContainer = document.createElement('div');
