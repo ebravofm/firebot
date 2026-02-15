@@ -308,7 +308,7 @@ export const Assistant = ({
 
         {/* Barra superior móvil (embebido) o botón flotante */}
         {showMobileBar ? (
-          <header className="fixed top-0 left-0 right-0 z-50 flex h-14 items-center justify-end gap-2 border-b bg-background px-4">
+          <header className="fixed top-0 left-0 right-0 z-50 flex h-14 items-center justify-between border-b bg-background px-4">
             <DropdownMenuOptions
               onReset={handleResetChat}
               onInfo={handleShowInfo}
