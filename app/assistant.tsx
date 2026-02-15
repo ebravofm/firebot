@@ -25,6 +25,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DropdownMenuOptions } from "@/components/DropdownMenuOptions";
 import { InfoModal } from "@/components/InfoModal";
+import { X } from "lucide-react";
 import { supabase } from "@/lib/supabase-client";
 import { storage } from "@/lib/storage";
 
@@ -61,6 +62,17 @@ export const Assistant = ({
   // Estado: modal de información
   const [isInfoModalOpen, setIsInfoModalOpen] = useState<boolean>(false);
 
+  // Barra superior en móvil embebido (widget fullscreen)
+  const [showMobileBar, setShowMobileBar] = useState(false);
+  useEffect(() => {
+    const isEmbedded = typeof window !== "undefined" && window.self !== window.top;
+    const mql = window.matchMedia("(max-width: 480px)");
+    const update = () => setShowMobileBar(isEmbedded && mql.matches);
+    update();
+    mql.addEventListener("change", update);
+    return () => mql.removeEventListener("change", update);
+  }, []);
+
   // Aplicar zoom al body y persistir en localStorage
   useEffect(() => {
     if (typeof document !== "undefined") {
@@ -80,6 +92,7 @@ export const Assistant = ({
 
   const handleShowInfo = () => setIsInfoModalOpen(true);
   const handleCloseInfoModal = () => setIsInfoModalOpen(false);
+  const handleCloseWidget = () => window.parent?.postMessage?.({ type: "CLOSE_WIDGET" }, "*");
 
   // Simular un mensaje de streaming simple cuando el thread es nuevo
   const welcomeStartedRef = useRef(false);
@@ -283,7 +296,7 @@ export const Assistant = ({
                 </Breadcrumb>
               </header>
             )}
-            <div className="flex-1 overflow-hidden">
+            <div className={`flex-1 overflow-hidden ${showMobileBar ? "pt-14" : ""}`}>
               <Thread 
                 welcomeTitle={welcomeTitle} 
                 welcomeSubtitle={welcomeSubtitle}
@@ -293,15 +306,34 @@ export const Assistant = ({
           </SidebarInset>
         </div>
 
-        {/* Botón flotante de opciones */}
-        <div className="fixed top-4 right-4 z-50">
-          <DropdownMenuOptions 
-            onReset={handleResetChat}
-            onInfo={handleShowInfo}
-            onZoomIn={handleZoomIn}
-            onZoomOut={handleZoomOut}
-          />
-        </div>
+        {/* Barra superior móvil (embebido) o botón flotante */}
+        {showMobileBar ? (
+          <header className="fixed top-0 left-0 right-0 z-50 flex h-14 items-center justify-end gap-2 border-b bg-background px-4">
+            <DropdownMenuOptions
+              onReset={handleResetChat}
+              onInfo={handleShowInfo}
+              onZoomIn={handleZoomIn}
+              onZoomOut={handleZoomOut}
+            />
+            <button
+              type="button"
+              onClick={handleCloseWidget}
+              className="p-2 rounded-full bg-gray-200 hover:bg-gray-300 transition-colors focus:outline-none"
+              aria-label="Cerrar"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </header>
+        ) : (
+          <div className="fixed top-4 right-4 z-50">
+            <DropdownMenuOptions
+              onReset={handleResetChat}
+              onInfo={handleShowInfo}
+              onZoomIn={handleZoomIn}
+              onZoomOut={handleZoomOut}
+            />
+          </div>
+        )}
 
         {/* Modal de información */}
         <InfoModal isOpen={isInfoModalOpen} onClose={handleCloseInfoModal} />
