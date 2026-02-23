@@ -206,7 +206,7 @@
   });
 
   const chatContainer = document.createElement('div');
-  chatContainer.id = 'servel-chat-widget-container';
+  chatContainer.id = 'chat-widget-container';
   Object.assign(chatContainer.style, {
     position: 'fixed',
     bottom: '100px',
@@ -242,7 +242,7 @@
     });
     chatIframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups');
     chatIframe.setAttribute('loading', 'lazy');
-    chatIframe.title = 'Asistente SERVEL';
+    chatIframe.title = 'Asistente Virtual';
 
     chatIframe.onerror = () => {
       console.error('Error al cargar el chat widget');
