@@ -11,14 +11,18 @@ export function createRagSearchTool({
 } = {}) {
   return tool({
     description:
-      "Search relevant documents via RAG. Returns a plain-text list with title, content, and similarity.",
-    inputSchema: z.object({ query: z.string().min(1, "query required") }),
-    execute: async ({ query }: { query: string }) => {
+      "Search relevant documents via RAG. Returns a plain-text list with title, content, and similarity. Optionally specify collection_ids to search in specific collections.",
+    inputSchema: z.object({ 
+      query: z.string().min(1, "query required"),
+      collection_ids: z.array(z.number()).optional()
+    }),
+    execute: async ({ query, collection_ids }: { query: string; collection_ids?: number[] }) => {
       try {
         const response = await searchRAG({
           query,
           top_k: maxResults,
           threadId, // Pasar threadId si está disponible
+          collection_ids, // Pasar collection_ids si se proporciona
         });
 
         const results = response.data || [];

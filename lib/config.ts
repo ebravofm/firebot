@@ -247,3 +247,40 @@ export function clearChatbotConfigCache(): void {
   configCache = null;
   lastFetchTime = 0;
 }
+
+// ============================================================================
+// FUNCIONES DE COLECCIONES RAG
+// ============================================================================
+
+export interface RagCollection {
+  id: number;
+  name: string;
+  description?: string;
+}
+
+/**
+ * Obtiene las colecciones RAG disponibles para un workspace desde Supabase
+ */
+export async function getCollectionsByWorkspace(workspaceId: number): Promise<RagCollection[]> {
+  try {
+    const { data, error } = await supabase
+      .from("rag_collections")
+      .select("id, name, description")
+      .eq("workspace_id", workspaceId)
+      .order("name");
+
+    if (error) {
+      console.error("Error obteniendo colecciones:", error);
+      return [];
+    }
+
+    return (data || []).map((col) => ({
+      id: col.id,
+      name: col.name ?? "",
+      description: col.description ?? undefined,
+    }));
+  } catch (error) {
+    console.error("Error en getCollectionsByWorkspace:", error instanceof Error ? error.message : "unknown");
+    return [];
+  }
+}

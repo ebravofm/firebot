@@ -25,6 +25,7 @@ export interface RAGSearchParams {
   similarity_threshold?: number;
   response_format?: string;
   threadId?: string; // Nuevo parámetro opcional
+  collection_ids?: number[]; // IDs de colecciones específicas para buscar
 }
 
 /**
@@ -91,30 +92,57 @@ export async function searchRAG(
   let collection_ids: number[];
   let authToken: string | null = null;
 
-  // Si se proporciona threadId, usar Supabase directamente
-  if (params.threadId) {
-    const config = await getWorkspaceAndCollectionsFromThread(params.threadId);
-    if (!config) {
-      throw new Error("No se pudo obtener la configuración desde el thread");
+  // Si se proporcionan collection_ids explícitamente, usarlos
+  // Si no, obtenerlos del config (comportamiento por defecto)
+  if (params.collection_ids && params.collection_ids.length > 0) {
+    // collection_ids ya está definido, solo necesitamos workspace_id
+    if (params.threadId) {
+      const config = await getWorkspaceAndCollectionsFromThread(params.threadId);
+      if (!config) {
+        throw new Error("No se pudo obtener la configuración desde el thread");
+      }
+      workspace_id = config.workspace_id;
+      collection_ids = params.collection_ids; // Usar los proporcionados
+    } else {
+      // Fallback: usar JWT (solo funciona en cliente)
+      authToken = typeof window !== 'undefined' ? storage.getJWT() : null;
+      if (!authToken) {
+        throw new Error("JWT no encontrado en localStorage y no se proporcionó threadId");
+      }
+
+      const chatbotConfig = await getChatbotConfig(authToken);
+      if (!chatbotConfig) {
+        throw new Error("No se pudo obtener la configuración del chatbot");
+      }
+      workspace_id = chatbotConfig.workspace_id;
+      collection_ids = params.collection_ids; // Usar los proporcionados
     }
-    workspace_id = config.workspace_id;
-    collection_ids = config.rag_collections;
   } else {
-    // Fallback: usar JWT (solo funciona en cliente)
-    authToken = typeof window !== 'undefined' ? storage.getJWT() : null;
-    if (!authToken) {
-      throw new Error("JWT no encontrado en localStorage y no se proporcionó threadId");
-    }
+    // Comportamiento por defecto: usar colecciones del config
+    if (params.threadId) {
+      const config = await getWorkspaceAndCollectionsFromThread(params.threadId);
+      if (!config) {
+        throw new Error("No se pudo obtener la configuración desde el thread");
+      }
+      workspace_id = config.workspace_id;
+      collection_ids = config.rag_collections;
+    } else {
+      // Fallback: usar JWT (solo funciona en cliente)
+      authToken = typeof window !== 'undefined' ? storage.getJWT() : null;
+      if (!authToken) {
+        throw new Error("JWT no encontrado en localStorage y no se proporcionó threadId");
+      }
 
-    // Obtener configuración del chatbot para workspace_id y collection_ids
-    const chatbotConfig = await getChatbotConfig(authToken);
-    
-    if (!chatbotConfig) {
-      throw new Error("No se pudo obtener la configuración del chatbot");
-    }
+      // Obtener configuración del chatbot para workspace_id y collection_ids
+      const chatbotConfig = await getChatbotConfig(authToken);
+      
+      if (!chatbotConfig) {
+        throw new Error("No se pudo obtener la configuración del chatbot");
+      }
 
-    workspace_id = chatbotConfig.workspace_id;
-    collection_ids = chatbotConfig.rag_collections;
+      workspace_id = chatbotConfig.workspace_id;
+      collection_ids = chatbotConfig.rag_collections;
+    }
   }
 
   const headers: HeadersInit = {
@@ -134,6 +162,10 @@ export async function searchRAG(
       similarity_threshold: params.similarity_threshold || 0,
       response_format: params.response_format || "minimal",
     };
+    // Incluir collection_ids si se proporcionaron
+    if (params.collection_ids && params.collection_ids.length > 0) {
+      body.collection_ids = params.collection_ids;
+    }
   } else {
     // Usar endpoint con JWT (fallback)
     url = `${ENV_CONFIG.BACKEND_URL}/rag/search`;
