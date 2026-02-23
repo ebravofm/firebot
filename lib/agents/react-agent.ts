@@ -53,6 +53,15 @@ export async function streamReactAgent({
     },
     stopWhen: stepCountIs(10),
     system: systemPrompt,
+    experimental_telemetry: {
+      isEnabled: true,
+      functionId: 'stream-react-agent',
+      metadata: {
+        ...(chatId && { chatId }),
+        modelId,
+        ...(chatbotConfig?.workspace_id && { workspaceId: chatbotConfig.workspace_id }),
+      },
+    },
   });
 }
 

@@ -15,4 +15,8 @@ export const ENV_CONFIG = {
   NEXT_PUBLIC_SHOW_RAG_RESULTS: process.env.NEXT_PUBLIC_SHOW_RAG_RESULTS === 'true' || false,
   NEXT_PUBLIC_ASSISTANT_ICON_URL: process.env.NEXT_PUBLIC_ASSISTANT_ICON_URL || '',
   OPENAI_MODEL: process.env.OPENAI_MODEL || 'gpt-4o-mini-2024-07-18',
+  // Langfuse configuration
+  LANGFUSE_PUBLIC_KEY: process.env.LANGFUSE_PUBLIC_KEY || '',
+  LANGFUSE_SECRET_KEY: process.env.LANGFUSE_SECRET_KEY || '',
+  LANGFUSE_HOST: process.env.LANGFUSE_HOST || 'https://cloud.langfuse.com',
 } as const;
