@@ -27,11 +27,17 @@ export async function streamReactAgent({
   let collectionsText = "";
   if (chatbotConfig?.workspace_id) {
     const collections = await getCollectionsByWorkspace(chatbotConfig.workspace_id);
-    if (collections.length > 0) {
+    if (collections.length > 1) {
+      // Solo agregar instrucciones si hay múltiples colecciones
       const collectionsList = collections
         .map((col) => `- ID ${col.id}: ${col.name}${col.description ? ` - ${col.description}` : ""}`)
         .join("\n");
-      collectionsText = `\n\nColecciones RAG disponibles:\n${collectionsList}\n\nPuedes especificar el parámetro opcional 'collection_ids' (array de IDs) en la herramienta 'rag_search' para buscar en colecciones específicas. Si no especificas collection_ids, se buscará en todas las colecciones configuradas para este chatbot.`;
+      
+      collectionsText = `\n\nColecciones RAG disponibles:\n${collectionsList}\n\nIMPORTANTE - Selección inteligente de colecciones:\nAntes de usar 'rag_search', analiza la pregunta del usuario y determina qué colección(es) son más relevantes basándote en el nombre y descripción de cada una. Usa el parámetro 'collection_ids' (array de IDs) para buscar solo en las colecciones relevantes. Esto evita resultados irrelevantes y mejora la precisión.\n\n- Si la pregunta claramente corresponde a una colección específica (por ejemplo, preguntas sobre trabajo/empleo van a colecciones de ofertas laborales), usa solo esa colección.\n- Si la pregunta es general o podría estar en múltiples colecciones, puedes especificar múltiples IDs o buscar en todas si es necesario.\n- Si solo hay una colección relevante para la pregunta, SIEMPRE especifica su ID para evitar ruido de otras colecciones.`;
+    } else if (collections.length === 1) {
+      // Si solo hay una colección, informar pero sin instrucciones complejas
+      const collection = collections[0];
+      collectionsText = `\n\nColección RAG disponible: ID ${collection.id} - ${collection.name}${collection.description ? ` (${collection.description})` : ""}`;
     }
   }
 
