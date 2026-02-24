@@ -1,6 +1,6 @@
 import { ToolCallContentPartComponent } from "@assistant-ui/react";
 import { useChatbotConfig } from "@/lib/chatbot-config-context";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "../ui/button";
 import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 
@@ -10,6 +10,24 @@ export const RagSearchToolUI: ToolCallContentPartComponent = ({
   const [isCollapsed, setIsCollapsed] = useState(true);
   const { ui } = useChatbotConfig();
   const showResults = ui.show_rag_results;
+  
+  // Extraer información de colecciones del resultado
+  const { collectionsText, resultsText } = useMemo(() => {
+    if (!result || typeof result !== 'string') {
+      return { collectionsText: null, resultsText: result };
+    }
+    
+    // Buscar el patrón "Colecciones buscadas: ..."
+    const collectionsMatch = result.match(/Colecciones buscadas:\s*(.+?)(?:\n|$)/);
+    if (collectionsMatch) {
+      const collectionsText = collectionsMatch[1].trim();
+      // Remover la línea de colecciones del texto de resultados
+      const resultsText = result.replace(/Colecciones buscadas:\s*.+?(?:\n|$)/, '').trim();
+      return { collectionsText, resultsText };
+    }
+    
+    return { collectionsText: null, resultsText: result };
+  }, [result]);
   
   // Si no se muestran resultados, solo texto simple
   if (!showResults) {
@@ -59,8 +77,15 @@ export const RagSearchToolUI: ToolCallContentPartComponent = ({
       {result && !isCollapsed && (
         <div className="flex flex-col gap-2 border-t pt-2">
           <div className="px-4">
+            {/* Mostrar colecciones si están disponibles */}
+            {collectionsText && (
+              <div className="mb-3 pb-3 border-b">
+                <p className="font-semibold text-sm mb-1">Colecciones buscadas:</p>
+                <p className="text-sm text-muted-foreground">{collectionsText}</p>
+              </div>
+            )}
             <p className="font-semibold">Resultados de búsqueda:</p>
-            <pre className="whitespace-pre-wrap text-sm mt-2">{result}</pre>
+            <pre className="whitespace-pre-wrap text-sm mt-2">{resultsText}</pre>
           </div>
         </div>
       )}

@@ -1,6 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { searchRAG } from "@/lib/api/rag";
+import { getCollectionsByWorkspace } from "@/lib/config";
 
 export function createRagSearchTool({ 
   maxResults = 3,
@@ -26,13 +27,30 @@ export function createRagSearchTool({
         });
 
         const results = response.data || [];
+        const collectionIds = response.collection_ids || [];
+
+        // Obtener nombres de las colecciones si hay workspace_id
+        let collectionsInfo = "";
+        if (collectionIds.length > 0 && response.workspace_id) {
+          try {
+            const collections = await getCollectionsByWorkspace(response.workspace_id);
+            const searchedCollections = collections.filter(col => collectionIds.includes(col.id));
+            if (searchedCollections.length > 0) {
+              const collectionNames = searchedCollections.map(col => col.name).join(", ");
+              collectionsInfo = `\nColecciones buscadas: ${collectionNames}`;
+            }
+          } catch (error) {
+            // Si falla obtener los nombres, solo mostrar los IDs
+            collectionsInfo = `\nColecciones buscadas: ${collectionIds.join(", ")}`;
+          }
+        }
 
         if (results.length === 0) {
-          return `Search results for: "${query}"\n\nNo results found.`;
+          return `Search results for: "${query}"${collectionsInfo}\n\nNo results found.`;
         }
 
         const lines: string[] = [];
-        lines.push(`Search results for: "${query}"`);
+        lines.push(`Search results for: "${query}"${collectionsInfo}`);
         lines.push("");
 
         for (let i = 0; i < results.length; i++) {
