@@ -48,13 +48,23 @@ export default function Page() {
       }
       setChatbotConfig(config);
 
+      // Aplicar estilos del widget_appearance como CSS variables
+      if (config.widget_appearance) {
+        const { primary_color, secondary_color, text_color, border_radius } = config.widget_appearance;
+        const root = document.documentElement;
+        if (primary_color) root.style.setProperty('--primary', primary_color);
+        if (text_color) root.style.setProperty('--primary-foreground', text_color);
+        if (secondary_color) root.style.setProperty('--secondary', secondary_color);
+        if (border_radius != null) root.style.setProperty('--radius', `${border_radius}px`);
+      }
+
       // Solo guardar el threadId si es válido
       if (id) {
         storage.setThreadId(id);
         const loadedMessages = await loadChat(id);
         setMessages(loadedMessages);
       }
-      
+
       setIsLoading(false);
     }
 

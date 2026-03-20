@@ -5,6 +5,19 @@ import { supabase } from './supabase-client';
 // ============================================================================
 // TIPOS
 // ============================================================================
+export type WidgetAppearance = {
+  primary_color: string | null;
+  secondary_color: string | null;
+  text_color: string | null;
+  border_radius: number | null;
+  position: string | null;
+  widget_size: string | null;
+  icon_url: string | null;
+  animate_bubble_chatbot: boolean | null;
+  enable_font_zoom: boolean | null;
+  enable_high_contrast_toggle: boolean | null;
+};
+
 export type ChatbotConfig = {
   id: number;
   workspace_id: number;
@@ -33,6 +46,7 @@ export type ChatbotConfig = {
   show_rag_results?: boolean | null;
   assistant_icon_url?: string | null;
   openai_model?: string | null;
+  widget_appearance: WidgetAppearance | null;
 };
 
 // ============================================================================
