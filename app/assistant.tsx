@@ -25,9 +25,11 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DropdownMenuOptions } from "@/components/DropdownMenuOptions";
 import { InfoModal } from "@/components/InfoModal";
+import { ChatHeader } from "@/components/ChatHeader";
 import { X } from "lucide-react";
 import { supabase } from "@/lib/supabase-client";
 import { storage } from "@/lib/storage";
+import { RatingOverlay } from "@/components/RatingOverlay";
 
 export const Assistant = ({
   chatId,
@@ -44,7 +46,8 @@ export const Assistant = ({
   welcomeSuggestions: Array<{ label: string; title: string; action: string }>;
   openingMessage?: string;
 }) => {
-  const { ui } = useChatbotConfig();
+  const { ui, config: chatbotConfig } = useChatbotConfig();
+  const wa = ui.widget_appearance;
   // Obtener JWT una vez al montar el componente
   // const jwtToken = storage.getJWT();
   
@@ -62,16 +65,81 @@ export const Assistant = ({
   // Estado: modal de información
   const [isInfoModalOpen, setIsInfoModalOpen] = useState<boolean>(false);
 
+  // Estado: rating/valoración
+  const [showRating, setShowRating] = useState(false);
+  const [ratingConfig, setRatingConfig] = useState<{ enabled: boolean; autoCloseTime: number } | null>(null);
+  const [ratingSubmitted, setRatingSubmitted] = useState(false);
+
+  // Detectar si viene del widget externo (source=widget) vs plataforma (preview/test)
+  const [isExternalWidget, setIsExternalWidget] = useState(false);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const isExternal = params.get('source') === 'widget';
+      setIsExternalWidget(isExternal);
+      console.log(`[Assistant] Source: ${isExternal ? 'widget externo' : 'plataforma (test)'}`);
+    }
+  }, []);
+
+  // Detectar si estamos en un iframe (widget embebido)
+  const [isEmbedded, setIsEmbedded] = useState(false);
+
   // Barra superior en móvil embebido (widget fullscreen)
   const [showMobileBar, setShowMobileBar] = useState(false);
   useEffect(() => {
-    const isEmbedded = typeof window !== "undefined" && window.self !== window.top;
+    const embedded = typeof window !== "undefined" && window.self !== window.top;
+    setIsEmbedded(embedded);
     const mql = window.matchMedia("(max-width: 480px)");
-    const update = () => setShowMobileBar(isEmbedded && mql.matches);
+    const update = () => setShowMobileBar(embedded && mql.matches);
     update();
     mql.addEventListener("change", update);
     return () => mql.removeEventListener("change", update);
   }, []);
+
+  // Recargar cuando el dashboard notifica que la config fue actualizada
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'CONFIG_UPDATED') {
+        window.location.reload();
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
+
+  // Fetch rating config via API route (evita CORS con backend directo)
+  useEffect(() => {
+    if (!chatbotConfig?.workspace_id) return;
+    const jwt = storage.getJWT();
+
+    const fetchRatingConfig = async () => {
+      try {
+        const res = await fetch(`/api/rating-config?workspace_id=${chatbotConfig.workspace_id}`, {
+          headers: {
+            ...(jwt ? { 'Authorization': `Bearer ${jwt}` } : {}),
+          },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          console.log('[Assistant] Rating config response:', data);
+          if (data?.is_enabled) {
+            console.log('[Assistant] Rating config loaded:', data);
+            setRatingConfig({
+              enabled: true,
+              autoCloseTime: parseFloat(data.auto_close_time || '1'),
+            });
+          } else {
+            console.log('[Assistant] Rating not enabled or no config found');
+          }
+        } else {
+          console.warn('[Assistant] Rating config fetch failed:', res.status);
+        }
+      } catch (err) {
+        console.warn('[Assistant] Could not fetch rating config:', err);
+      }
+    };
+    fetchRatingConfig();
+  }, [chatbotConfig?.workspace_id]);
 
   // Aplicar zoom al body y persistir en localStorage
   useEffect(() => {
@@ -267,13 +335,83 @@ export const Assistant = ({
     };
   }, [chat, chatId, takenByHuman]);
 
+  // Lógica de inactividad para mostrar rating automáticamente
+  // Se activa cada vez que cambia el número de mensajes
+  const messageCount = chat.messages?.length || 0;
+  useEffect(() => {
+    if (!ratingConfig?.enabled || ratingSubmitted || showRating) return;
+    // Solo activar timer si hay al menos 2 mensajes (usuario + asistente)
+    if (messageCount < 2) return;
+
+    const delayMs = (ratingConfig.autoCloseTime || 1) * 60 * 1000;
+    console.log(`[Assistant] Rating timer started: ${delayMs / 1000}s after ${messageCount} messages`);
+
+    const timer = setTimeout(() => {
+      console.log('[Assistant] Rating timer fired! Showing overlay');
+      setShowRating(true);
+    }, delayMs);
+
+    return () => clearTimeout(timer);
+  }, [messageCount, ratingConfig, ratingSubmitted, showRating]);
+
+  // Handler para enviar la valoración
+  const handleRatingSubmit = async (rating: number, comment: string) => {
+    // Solo guardar en BD si viene del widget externo (no desde la plataforma/test)
+    if (!isExternalWidget) {
+      console.log('[Assistant] Rating desde plataforma (test) - no se guarda en BD');
+      setRatingSubmitted(true);
+      return;
+    }
+
+    const jwt = storage.getJWT();
+    try {
+      await fetch('/api/rating', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(jwt ? { 'Authorization': `Bearer ${jwt}` } : {}),
+        },
+        body: JSON.stringify({
+          workspace_id: chatbotConfig?.workspace_id,
+          thread_id: chatId || null,
+          chatbot_id: chatbotConfig?.id || null,
+          rating,
+          comment: comment || null,
+          user_session_id: typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('scrivot-session-id') : null,
+        }),
+      });
+      setRatingSubmitted(true);
+      console.log('[Assistant] Rating submitted successfully (widget externo)');
+    } catch (err) {
+      console.error('[Assistant] Error submitting rating:', err);
+      throw err;
+    }
+  };
+
+  // Al cerrar el rating → reiniciar el chat de forma instantánea
+  const handleRatingClose = () => {
+    // Limpiar mensajes inmediatamente para que no se vea el chat anterior
+    chat.setMessages([]);
+    setShowRating(false);
+    setRatingSubmitted(false);
+    // Navegar a nuevo chat
+    storage.removeThreadId();
+    router.replace("/chat");
+  };
+
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <SidebarProvider>
         <div className="flex h-dvh w-full pr-0.5">
           {ui.show_sidebar && <AppSidebar />}
           <SidebarInset>
-            {ui.show_header && (
+            {/* Widget-style header: always show when embedded, use ChatHeader */}
+            {isEmbedded ? (
+              <ChatHeader
+                onClose={handleCloseWidget}
+                onReset={handleResetChat}
+              />
+            ) : ui.show_header ? (
               <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
                 {ui.show_sidebar && (
                   <>
@@ -295,36 +433,41 @@ export const Assistant = ({
                   </BreadcrumbList>
                 </Breadcrumb>
               </header>
+            ) : null}
+            {/* Banner de notificación si está configurado */}
+            {ui.banner_text_enable && ui.banner_text && (
+              <div
+                className="px-4 py-2 text-xs text-center font-medium shrink-0"
+                style={{
+                  backgroundColor: wa?.primary_color ? `${wa.primary_color}1a` : 'var(--muted)',
+                  color: wa?.primary_color ?? 'var(--foreground)',
+                  borderBottom: `1px solid ${wa?.primary_color ? `${wa.primary_color}33` : 'var(--border)'}`,
+                }}
+              >
+                {ui.banner_text}
+              </div>
             )}
-            <div className={`flex-1 overflow-hidden ${showMobileBar ? "pt-14" : ""}`}>
-              <Thread 
-                welcomeTitle={welcomeTitle} 
+
+            <div className="flex-1 overflow-hidden relative">
+              <Thread
+                welcomeTitle={welcomeTitle}
                 welcomeSubtitle={welcomeSubtitle}
                 welcomeSuggestions={welcomeSuggestions}
               />
+              {/* Rating overlay - se muestra sobre el chat */}
+              {showRating && (
+                <RatingOverlay
+                  onClose={handleRatingClose}
+                  onSubmit={handleRatingSubmit}
+                  primaryColor={wa?.primary_color ?? undefined}
+                />
+              )}
             </div>
           </SidebarInset>
         </div>
 
-        {/* Barra superior móvil (embebido) o botón flotante */}
-        {showMobileBar ? (
-          <header className="fixed top-0 left-0 right-0 z-50 flex h-14 items-center justify-between border-b bg-background px-4">
-            <DropdownMenuOptions
-              onReset={handleResetChat}
-              onInfo={handleShowInfo}
-              onZoomIn={handleZoomIn}
-              onZoomOut={handleZoomOut}
-            />
-            <button
-              type="button"
-              onClick={handleCloseWidget}
-              className="p-2 rounded-full bg-gray-200 hover:bg-gray-300 transition-colors focus:outline-none"
-              aria-label="Cerrar"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </header>
-        ) : (
+        {/* Botón flotante de opciones cuando no estamos embebidos */}
+        {!isEmbedded && (
           <div className="fixed top-4 right-4 z-50">
             <DropdownMenuOptions
               onReset={handleResetChat}

@@ -10,21 +10,27 @@ export default function Home() {
   const [isReadyForRedirect, setIsReadyForRedirect] = useState(false);
 
   useEffect(() => {
-    // 1. Capturar el JWT de la URL
-    const jwtFromUrl = searchParams.get('jwt');
-    if (jwtFromUrl) {
-      console.log("Home Page: JWT found in URL, saving to localStorage.");
-      storage.setJWT(jwtFromUrl);
+    // 1. JWT: leer también desde window.location (más fiable que useSearchParams en la primera carga / iframe)
+    const fromWindow =
+      typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search).get("jwt")
+        : null
+    const jwtFromUrl = fromWindow ?? searchParams.get("jwt")
 
-      // 2. Limpiar la URL para que el JWT no quede visible
-      const newUrl = window.location.pathname + window.location.search.replace(/(\?|&)jwt=[^&]*/, '');
-      window.history.replaceState({}, document.title, newUrl);
+    if (jwtFromUrl) {
+      console.log("Home Page: JWT found in URL, saving to localStorage.")
+      storage.setJWT(jwtFromUrl)
+
+      if (typeof window !== "undefined") {
+        const u = new URL(window.location.href)
+        u.searchParams.delete("jwt")
+        const next = `${u.pathname}${u.search}${u.hash}`
+        window.history.replaceState({}, document.title, next)
+      }
     }
 
-    // 3. Marcar como listo para la redirección
-    setIsReadyForRedirect(true);
-
-  }, [searchParams]);
+    setIsReadyForRedirect(true)
+  }, [searchParams])
 
   useEffect(() => {
     // 4. Redirigir solo cuando esté listo

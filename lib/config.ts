@@ -18,6 +18,17 @@ export type WidgetAppearance = {
   enable_high_contrast_toggle: boolean | null;
 };
 
+export type WidgetMessages = {
+  header_title: string | null;
+  header_subtitle: string | null;
+  chat_placeholder: string | null;
+  offline_message: string | null;
+  banner_text: string | null;
+  banner_text_enable: boolean | null;
+  loading_message: string | null;
+  error_message: string | null;
+};
+
 export type ChatbotConfig = {
   id: number;
   workspace_id: number;
@@ -47,22 +58,40 @@ export type ChatbotConfig = {
   assistant_icon_url?: string | null;
   openai_model?: string | null;
   widget_appearance: WidgetAppearance | null;
+  widget_messages: WidgetMessages | null;
 };
 
 // ============================================================================
 // RESOLUCIÓN DE CONFIG UI (BD preponderante, env fallback)
 // ============================================================================
 export function resolveUIConfig(config: ChatbotConfig | null) {
+  // Usar icon_url de widget_appearance como fallback si assistant_icon_url no está definido
+  const iconUrl = config?.assistant_icon_url
+    ?? config?.widget_appearance?.icon_url
+    ?? ENV_CONFIG.NEXT_PUBLIC_ASSISTANT_ICON_URL
+    ?? '';
+
+  const wm = config?.widget_messages;
+
   return {
     show_sidebar: config?.show_sidebar ?? ENV_CONFIG.NEXT_PUBLIC_SHOW_SIDEBAR,
     show_header: config?.show_header ?? ENV_CONFIG.NEXT_PUBLIC_SHOW_HEADER,
     show_attach_file: config?.show_attach_file ?? ENV_CONFIG.NEXT_PUBLIC_SHOW_ATTACH_FILE,
     show_edit_button: config?.show_edit_button ?? ENV_CONFIG.NEXT_PUBLIC_SHOW_EDIT_BUTTON,
     show_assistant_action_bar: config?.show_assistant_action_bar ?? ENV_CONFIG.NEXT_PUBLIC_SHOW_ASSISTANT_ACTION_BAR,
-    composer_placeholder: config?.composer_placeholder ?? ENV_CONFIG.NEXT_PUBLIC_COMPOSER_PLACEHOLDER,
+    composer_placeholder: wm?.chat_placeholder ?? config?.composer_placeholder ?? ENV_CONFIG.NEXT_PUBLIC_COMPOSER_PLACEHOLDER,
     enable_tool_fallback: config?.enable_tool_fallback ?? ENV_CONFIG.NEXT_PUBLIC_ENABLE_TOOL_FALLBACK,
     show_rag_results: config?.show_rag_results ?? ENV_CONFIG.NEXT_PUBLIC_SHOW_RAG_RESULTS,
-    assistant_icon_url: config?.assistant_icon_url ?? ENV_CONFIG.NEXT_PUBLIC_ASSISTANT_ICON_URL ?? '',
+    assistant_icon_url: iconUrl,
+    // Widget appearance properties
+    widget_appearance: config?.widget_appearance ?? null,
+    // Widget messages properties
+    header_title: wm?.header_title ?? 'Asistente Virtual',
+    header_subtitle: wm?.header_subtitle ?? '',
+    banner_text: wm?.banner_text ?? '',
+    banner_text_enable: wm?.banner_text_enable ?? false,
+    loading_message: wm?.loading_message ?? 'Pensando...',
+    error_message: wm?.error_message ?? 'Error al procesar tu mensaje',
   };
 }
 
@@ -82,14 +111,25 @@ export type JWTPayload = {
  */
 function decodeJWT(token: string): JWTPayload | null {
   try {
+    const raw =
+      typeof token === 'string'
+        ? token.trim().replace(/^Bearer\s+/i, '')
+        : ''
+    if (!raw || raw === 'null' || raw === 'undefined') {
+      return null
+    }
     // Un JWT tiene la estructura: header.payload.signature
-    const parts = token.split('.');
+    const parts = raw.split('.')
     if (parts.length !== 3) {
-      throw new Error('Token JWT inválido');
+      console.error(
+        'decodeJWT: el token no tiene 3 segmentos (¿JWT truncado, vacío o no es widget?). Longitud:',
+        raw.length,
+      )
+      return null
     }
     
     // Decodificar la parte del payload (base64url)
-    const payload = parts[1];
+    const payload = parts[1]
     // Convertir base64url a base64 estándar
     const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
     // Agregar padding si es necesario
@@ -99,8 +139,8 @@ function decodeJWT(token: string): JWTPayload | null {
     const decoded = JSON.parse(atob(padded));
     return decoded;
   } catch (error) {
-    console.error('Error decodificando JWT:', error);
-    return null;
+    console.error('Error decodificando JWT:', error)
+    return null
   }
 }
 
@@ -116,9 +156,9 @@ function getChatbotIdFromJWT(jwtToken: string): string | null {
     return null;
   }
   
-  const chatbotId = payload.chatbot_id;
-  console.log('Chatbot ID extraído del JWT:', chatbotId);
-  return chatbotId ? chatbotId.toString() : null;
+  const chatbotId = payload.chatbot_id
+  console.log('Chatbot ID extraído del JWT:', chatbotId)
+  return chatbotId != null && String(chatbotId) !== '' ? String(chatbotId) : null
 }
 
 // ============================================================================
@@ -157,7 +197,7 @@ export async function getChatbotConfigFromThread(threadId: string): Promise<Chat
 
     const { data: config, error: configError } = await supabase
       .from("chatbot_config")
-      .select("id, workspace_id, name, description, primary_language_id, created_at, updated_at, system_prompt, welcome_message, initial_message, welcome_suggestions, rag_collections, show_sidebar, show_header, show_attach_file, show_edit_button, show_assistant_action_bar, composer_placeholder, enable_tool_fallback, show_rag_results, assistant_icon_url, openai_model")
+      .select("id, workspace_id, description, primary_language_id, created_at, updated_at, system_prompt, welcome_message, initial_message, welcome_suggestions, rag_collections, show_sidebar, show_header, show_attach_file, show_edit_button, show_assistant_action_bar, composer_placeholder, enable_tool_fallback, show_rag_results, assistant_icon_url, openai_model, widget_token")
       .eq("id", thread.chatbot_id)
       .single();
 
@@ -166,10 +206,24 @@ export async function getChatbotConfigFromThread(threadId: string): Promise<Chat
       return null;
     }
 
+    // Fetch widget_appearance and widget_messages by workspace_id
+    const [{ data: wa }, { data: wm }] = await Promise.all([
+      supabase
+        .from("widget_appearance")
+        .select("primary_color, secondary_color, text_color, border_radius, position, widget_size, icon_url, animate_bubble_chatbot, enable_font_zoom, enable_high_contrast_toggle")
+        .eq("workspace_id", thread.workspace_id)
+        .maybeSingle(),
+      supabase
+        .from("widget_messages")
+        .select("header_title, header_subtitle, chat_placeholder, offline_message, banner_text, banner_text_enable, loading_message, error_message")
+        .eq("workspace_id", thread.workspace_id)
+        .maybeSingle(),
+    ]);
+
     const result: ChatbotConfig = {
       id: config.id,
       workspace_id: config.workspace_id,
-      name: config.name ?? "",
+      name: "",
       description: config.description ?? "",
       primary_language_id: config.primary_language_id,
       created_at: config.created_at ?? "",
@@ -189,6 +243,8 @@ export async function getChatbotConfigFromThread(threadId: string): Promise<Chat
       show_rag_results: config.show_rag_results ?? undefined,
       assistant_icon_url: config.assistant_icon_url ?? undefined,
       openai_model: config.openai_model ?? undefined,
+      widget_appearance: wa ?? null,
+      widget_messages: wm ?? null,
     };
 
     console.log("getChatbotConfigFromThread: configuración obtenida desde Supabase");

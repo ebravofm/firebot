@@ -1,11 +1,26 @@
 (function (config = {}) {
-  // Obtener el JWT de los parámetros de URL del script
+  // JWT: document.currentScript funciona al ejecutar /api/widget?jwt=... o widget.js?jwt=...
   const getJWTFromScript = () => {
+    const cur = document.currentScript;
+    if (cur && cur.src) {
+      try {
+        const j = new URL(cur.src).searchParams.get('jwt');
+        if (j) return j;
+      } catch {
+        /* ignore */
+      }
+    }
     const scripts = document.getElementsByTagName('script');
     for (let script of scripts) {
-      if (script.src && script.src.includes('widget.js')) {
+      if (!script.src) continue;
+      try {
         const url = new URL(script.src);
-        return url.searchParams.get('jwt');
+        const j = url.searchParams.get('jwt');
+        if (j && (url.pathname.includes('widget.js') || url.pathname.includes('/api/widget'))) {
+          return j;
+        }
+      } catch {
+        /* ignore */
       }
     }
     return null;
@@ -29,7 +44,8 @@
       close: 'Cerrar Asistente'
     },
     avatar: '',
-    welcomeMessage: '¡Bienvenid@!'
+    welcomeMessage: '¡Bienvenid@!',
+    animateBubble: false
   };
 
   const initializeWidget = () => {
@@ -39,7 +55,7 @@
     };
 
     // Continuar con la inicialización del widget usando widgetConfig
-    createWidget(widgetConfig);
+    return createWidget(widgetConfig);
   };
 
   const createWidget = (widgetConfig) => {
@@ -82,14 +98,26 @@
 
   const chatButtonContainer = document.createElement('div');
   chatButtonContainer.className = "aui-root aui-modal-anchor";
-  Object.assign(chatButtonContainer.style, {
+  const btnPos = {
     position: 'fixed',
     bottom: widgetConfig.position.bottom,
-    right: widgetConfig.position.right,
     width: '3rem',
     height: '3rem',
     zIndex: '9999'
-  });
+  };
+  if (widgetConfig.position.left) {
+    btnPos.left = widgetConfig.position.left;
+    btnPos.right = 'auto';
+  } else {
+    btnPos.right = widgetConfig.position.right;
+  }
+  Object.assign(chatButtonContainer.style, btnPos);
+
+  // Compute FAB size based on widget_size config
+  const fabSizeMap = { 'pequeño': '2.5rem', 'mediano': '3rem', 'grande': '3.5rem' };
+  const fabSize = fabSizeMap[widgetConfig.size?.width === '360px' ? 'pequeño' : widgetConfig.size?.width === '550px' ? 'grande' : 'mediano'] || '3rem';
+  chatButtonContainer.style.width = fabSize;
+  chatButtonContainer.style.height = fabSize;
 
   const chatButton = document.createElement('button');
   chatButton.className = "aui-button aui-button-primary aui-button-icon aui-modal-button";
@@ -97,45 +125,48 @@
   chatButton.setAttribute('type', 'button');
   chatButton.setAttribute('aria-haspopup', 'dialog');
   chatButton.setAttribute('aria-expanded', 'false');
-  const closedIcon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  closedIcon.setAttribute('width', '20');
-  closedIcon.setAttribute('height', '20');
-  closedIcon.setAttribute('viewBox', '0 0 24 24');
-  closedIcon.setAttribute('fill', 'none');
-  closedIcon.setAttribute('stroke', 'currentColor');
-  closedIcon.setAttribute('stroke-width', '2');
-  closedIcon.setAttribute('stroke-linecap', 'round');
-  closedIcon.setAttribute('stroke-linejoin', 'round');
-  closedIcon.setAttribute('data-state', 'closed');
-  closedIcon.className.baseVal = "lucide lucide-bot aui-modal-button-closed-icon";
+  chatButton.setAttribute('data-animate', widgetConfig.animateBubble === true ? 'true' : 'false');
+  // FAB: radio completo (puede ser círculo/píldora). Ventana: máximo 12px.
+  var fabRadius = (widgetConfig.theme && widgetConfig.theme.borderRadius != null) ? widgetConfig.theme.borderRadius : 9999;
+  var chatRadius = (widgetConfig.theme && widgetConfig.theme.chatRadius != null) ? widgetConfig.theme.chatRadius : Math.min(fabRadius, 12);
+  chatButton.style.borderRadius = fabRadius + 'px';
+  // Helper to build an SVG element with paths
+  function makeSvg(paths, extraAttrs) {
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute('width', '20');
+    svg.setAttribute('height', '20');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke', 'currentColor');
+    svg.setAttribute('stroke-width', '2');
+    svg.setAttribute('stroke-linecap', 'round');
+    svg.setAttribute('stroke-linejoin', 'round');
+    svg.setAttribute('data-state', 'closed');
+    svg.className.baseVal = "aui-modal-button-closed-icon";
+    if (extraAttrs) Object.keys(extraAttrs).forEach(k => svg.setAttribute(k, extraAttrs[k]));
+    paths.forEach(function(d) {
+      const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      p.setAttribute('d', d);
+      svg.appendChild(p);
+    });
+    return svg;
+  }
 
-  const path1 = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  path1.setAttribute('d', 'M12 8V4H8');
-  closedIcon.appendChild(path1);
-
-  const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-  rect.setAttribute('width', '16');
-  rect.setAttribute('height', '12');
-  rect.setAttribute('x', '4');
-  rect.setAttribute('y', '8');
-  rect.setAttribute('rx', '2');
-  closedIcon.appendChild(rect);
-
-  const path2 = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  path2.setAttribute('d', 'M2 14h2');
-  closedIcon.appendChild(path2);
-
-  const path3 = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  path3.setAttribute('d', 'M20 14h2');
-  closedIcon.appendChild(path3);
-
-  const path4 = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  path4.setAttribute('d', 'M15 13v2');
-  closedIcon.appendChild(path4);
-
-  const path5 = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  path5.setAttribute('d', 'M9 13v2');
-  closedIcon.appendChild(path5);
+  // Choose closed icon based on avatar config
+  let closedIcon;
+  const avatarType = widgetConfig.avatar || 'builtin:default';
+  if (avatarType === 'builtin:sparkles') {
+    closedIcon = makeSvg([
+      'M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z',
+      'M20 3v4',
+      'M22 5h-4',
+    ]);
+  } else {
+    // builtin:default = MessageCircle (chat bubble)
+    closedIcon = makeSvg([
+      'M7.9 20A9 9 0 1 0 4 16.1L2 22Z',
+    ]);
+  }
 
   const openIcon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   openIcon.setAttribute('width', '15');
@@ -157,64 +188,76 @@
   srOnlySpan.className = "aui-sr-only";
   srOnlySpan.textContent = widgetConfig.labels.open;
 
-  chatButton.append(closedIcon, openIcon, srOnlySpan);
+  // If avatar is a real URL (not builtin:*), replace closedIcon with the image
+  if (widgetConfig.avatar && !widgetConfig.avatar.startsWith('builtin:')) {
+    const avatarImg = document.createElement('img');
+    avatarImg.src = widgetConfig.avatar;
+    avatarImg.alt = '';
+    avatarImg.className = 'aui-modal-button-closed-icon';
+    avatarImg.setAttribute('data-state', 'closed');
+    Object.assign(avatarImg.style, {
+      width: '85%',
+      height: '85%',
+      objectFit: 'contain',
+    });
+    // Override closedIcon to point to the image so toggle updates it correctly
+    closedIcon = avatarImg;
+    chatButton.append(avatarImg, openIcon, srOnlySpan);
+  } else {
+    // Use the builtin SVG icon (default=chat bubble, sparkles=sparkles)
+    chatButton.append(closedIcon, openIcon, srOnlySpan);
+  }
   chatButtonContainer.appendChild(chatButton);
-  const tooltipWrapper = document.createElement('div');
-  tooltipWrapper.setAttribute('data-radix-popper-content-wrapper', '');
-  tooltipWrapper.style.cssText = `
-    position: fixed;
-    left: 0px;
-    top: 0px;
-    transform: translate(0px, 0px);
-    min-width: max-content;
-    will-change: transform;
-    z-index: 50;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.2s ease;
-  `;
 
-  const tooltipContent = document.createElement('div');
-  tooltipContent.className = 'aui-tooltip-content';
-  tooltipContent.setAttribute('data-side', 'left');
-  tooltipContent.setAttribute('data-align', 'center');
-  tooltipContent.setAttribute('data-state', 'delayed-open');
-  tooltipContent.textContent = widgetConfig.labels.open;
+  // Persistent banner bubble (shown when bannerEnabled = true and chat is closed)
+  let bannerBubble = null;
+  if (widgetConfig.bannerEnabled && widgetConfig.bannerText) {
+    bannerBubble = document.createElement('div');
+    bannerBubble.className = 'aui-banner-bubble' + (widgetConfig.position.left ? ' aui-banner-left' : '');
+    bannerBubble.textContent = widgetConfig.bannerText;
+    document.body.appendChild(bannerBubble);
 
-  tooltipWrapper.appendChild(tooltipContent);
-  document.body.appendChild(tooltipWrapper);
+    // Position banner next to the chat button (opposite side of screen edge)
+    const isLeftPosition = !!widgetConfig.position.left;
+    const positionBanner = () => {
+      const rect = chatButtonContainer.getBoundingClientRect();
+      bannerBubble.style.top = `${rect.top + rect.height / 2 - bannerBubble.offsetHeight / 2}px`;
+      if (isLeftPosition) {
+        // Button on left → banner to the right
+        bannerBubble.style.left = `${rect.right + 12}px`;
+        bannerBubble.style.right = 'auto';
+      } else {
+        // Button on right → banner to the left
+        bannerBubble.style.right = `${window.innerWidth - rect.left + 12}px`;
+        bannerBubble.style.left = 'auto';
+      }
+    };
+    requestAnimationFrame(positionBanner);
+    window.addEventListener('resize', positionBanner);
+  }
 
-  let tooltipTimeout;
-  chatButton.addEventListener('mouseenter', (e) => {
-    const rect = chatButton.getBoundingClientRect();
-    clearTimeout(tooltipTimeout);
-    tooltipTimeout = setTimeout(() => {
-      tooltipWrapper.style.opacity = '0';
-      tooltipWrapper.style.display = 'block';
-      requestAnimationFrame(() => {
-        const tooltipWidth = tooltipContent.offsetWidth;
-        tooltipWrapper.style.left = `${rect.left - tooltipWidth - 8}px`;
-        tooltipWrapper.style.top = `${rect.top + rect.height / 2 - tooltipContent.offsetHeight / 2}px`;
-        tooltipWrapper.style.opacity = '1';
-      });
-    }, widgetConfig.theme.tooltipDelay);
-  });
-
-  chatButton.addEventListener('mouseleave', () => {
-    clearTimeout(tooltipTimeout);
-    tooltipWrapper.style.opacity = '0';
-  });
+  // --- Display Mode: ajustar tamaño del chat según modo ---
+  var displayMode = widgetConfig.displayMode || 'estandar';
+  var chatWidth, chatHeight;
+  if (displayMode === 'compacto') {
+    // Compacto: más pequeño que el tamaño configurado
+    chatWidth = '320px';
+    chatHeight = '420px';
+  } else {
+    // Estándar y expandido usan el tamaño configurado en desktop
+    chatWidth = 'var(--widget-size-width)';
+    chatHeight = 'var(--widget-size-height)';
+  }
 
   const chatContainer = document.createElement('div');
   chatContainer.id = 'chat-widget-container';
-  Object.assign(chatContainer.style, {
+  const containerPos = {
     position: 'fixed',
     bottom: '100px',
-    right: '32px',
-    width: 'var(--widget-size-width)',
-    height: 'var(--widget-size-height)',
+    width: chatWidth,
+    height: chatHeight,
     background: 'white',
-    borderRadius: '12px',
+    borderRadius: chatRadius + 'px',
     boxShadow: '0 8px 40px rgba(0,0,0,0.2)',
     zIndex: '9999',
     overflow: 'hidden',
@@ -222,7 +265,14 @@
     transform: 'translateY(20px)',
     transition: 'opacity 300ms ease, transform 300ms ease',
     pointerEvents: 'none'
-  });
+  };
+  if (widgetConfig.position.left) {
+    containerPos.left = '32px';
+    containerPos.right = 'auto';
+  } else {
+    containerPos.right = '32px';
+  }
+  Object.assign(chatContainer.style, containerPos);
 
   let chatIframe = null;
 
@@ -232,7 +282,17 @@
     chatIframe = document.createElement('iframe');
 
     // Añadimos el JWT a la URL del iframe si existe
-    const iframeSrc = jwt ? `${widgetConfig.baseUrl}?jwt=${jwt}` : widgetConfig.baseUrl;
+    // Protección contra duplicación: no agregar jwt si baseUrl ya lo contiene
+    let iframeSrc = widgetConfig.baseUrl;
+    if (jwt) {
+      const sep = iframeSrc.includes('?') ? '&' : '?';
+      if (!iframeSrc.includes('jwt=')) {
+        iframeSrc = `${iframeSrc}${sep}jwt=${encodeURIComponent(jwt)}`;
+      }
+    }
+    // Marcar que viene del widget externo (no es preview de la plataforma)
+    var srcSep = iframeSrc.includes('?') ? '&' : '?';
+    iframeSrc = iframeSrc + srcSep + 'source=widget';
     chatIframe.src = iframeSrc;
     
     Object.assign(chatIframe.style, {
@@ -253,18 +313,35 @@
   };
   document.body.append(chatButtonContainer, chatContainer);
 
+  // --- Show on Mobile: ocultar widget completo en pantallas móviles si está desactivado ---
+  if (widgetConfig.showOnMobile === false) {
+    var mobileHideQuery = window.matchMedia('(max-width: 768px)');
+    var applyMobileVisibility = function(e) {
+      var display = e.matches ? 'none' : '';
+      chatButtonContainer.style.display = display;
+      chatContainer.style.display = display;
+      if (bannerBubble) bannerBubble.style.display = display;
+    };
+    mobileHideQuery.addListener(applyMobileVisibility);
+    applyMobileVisibility(mobileHideQuery);
+  }
+
   let isChatOpen = false;
   const toggleChat = (open = !isChatOpen) => {
     isChatOpen = open;
     chatContainer.style.opacity = isChatOpen ? '1' : '0';
     chatContainer.style.transform = isChatOpen ? 'translateY(0)' : 'translateY(20px)';
     chatContainer.style.pointerEvents = isChatOpen ? 'auto' : 'none';
-    tooltipWrapper.style.opacity = '0';
-    tooltipContent.textContent = isChatOpen ? widgetConfig.labels.close : widgetConfig.labels.open;
     chatButton.setAttribute('data-state', isChatOpen ? 'open' : 'closed');
     chatButton.setAttribute('aria-expanded', isChatOpen);
     closedIcon.setAttribute('data-state', isChatOpen ? 'open' : 'closed');
     openIcon.setAttribute('data-state', isChatOpen ? 'open' : 'closed');
+
+    // Hide banner when chat is open, show when closed
+    if (bannerBubble) {
+      bannerBubble.style.opacity = isChatOpen ? '0' : '1';
+      bannerBubble.style.pointerEvents = isChatOpen ? 'none' : 'auto';
+    }
 
     if (isChatOpen) {
       // Crear el iframe solo cuando se abre el chat por primera vez
@@ -274,7 +351,8 @@
       if (chatIframe && chatIframe.contentWindow) {
         chatIframe.contentWindow.postMessage({
           type: 'WIDGET_OPENED',
-          origin: window.location.origin
+          origin: window.location.origin,
+          ratingConfig: widgetConfig.rating || null
         }, widgetConfig.baseUrl);
       }
     }
@@ -289,36 +367,67 @@
     setTimeout(function () { toggleChat(true); }, 150);
   }
 
-  window.addEventListener('message', function (event) {
+  // Auto-open: abrir automáticamente después del delay configurado
+  console.log('[Scrivot] autoOpen config:', widgetConfig.autoOpen, 'delay:', widgetConfig.autoOpenDelay);
+  if (widgetConfig.autoOpen) {
+    var autoOpenDelay = (typeof widgetConfig.autoOpenDelay === 'number' ? widgetConfig.autoOpenDelay : 3) * 1000;
+    var autoOpenKey = 'scrivot-auto-opened';
+    console.log('[Scrivot] Auto-open enabled, delay:', autoOpenDelay + 'ms, already opened:', !!sessionStorage.getItem(autoOpenKey));
+    // Solo auto-abrir una vez por sesión para no molestar al usuario
+    if (!sessionStorage.getItem(autoOpenKey)) {
+      setTimeout(function () {
+        if (!isChatOpen) {
+          console.log('[Scrivot] Auto-opening chat now');
+          toggleChat(true);
+          sessionStorage.setItem(autoOpenKey, '1');
+        }
+      }, autoOpenDelay);
+    }
+  }
+
+  const handleMessage = function (event) {
+    if (!event.data) return;
     if (!isValidOrigin(event.origin)) return;
     switch (event.data.type) {
       case 'CLOSE_WIDGET':
         toggleChat(false);
         break;
       case 'WIDGET_READY':
-        chatIframe.classList.add('ready');
+        if (chatIframe) chatIframe.classList.add('ready');
         break;
     }
-  });
+  };
+  window.addEventListener('message', handleMessage);
 
-  const mediaQuery = window.matchMedia('(max-width: 480px)');
+  // Responsive: modo expandido usa fullscreen en móvil, estándar/compacto también fullscreen en pantallas muy pequeñas
+  var expandedBreakpoint = displayMode === 'expandido' ? '(max-width: 768px)' : '(max-width: 480px)';
+  const mediaQuery = window.matchMedia(expandedBreakpoint);
   const handleResponsive = (e) => {
     if (e.matches) {
+      // Fullscreen en móvil
       Object.assign(chatContainer.style, {
         width: '100%',
         height: '100%',
         bottom: '0',
         right: '0',
+        left: '0',
         borderRadius: '0'
       });
     } else {
-      Object.assign(chatContainer.style, {
-        width: 'var(--widget-size-width)',
-        height: 'var(--widget-size-height)',
+      const restorePos = {
+        width: chatWidth,
+        height: chatHeight,
         bottom: '100px',
-        right: '32px',
-        borderRadius: '12px'
-      });
+        borderRadius: chatRadius + 'px'
+      };
+      if (widgetConfig.position.left) {
+        restorePos.left = '32px';
+        restorePos.right = 'auto';
+      } else {
+        restorePos.right = '32px';
+        restorePos.left = 'auto';
+      }
+      Object.assign(chatContainer.style, restorePos);
     }
   };
   mediaQuery.addListener(handleResponsive);
@@ -352,7 +461,7 @@
   border: 0;
 }
 
-.aui-modal-button[data-state="closed"] {
+.aui-modal-button[data-state="closed"][data-animate="true"] {
   animation: skew-y-shaking 2.25s infinite;
 }
 
@@ -410,26 +519,70 @@
   background-color: var(--widget-primary-color-hover);
 }
 
-.aui-tooltip-content {
-  background: #2f2f2f;
-  color: white;
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
+.aui-banner-bubble {
+  position: fixed;
+  background: white;
+  color: #111827;
+  padding: 0.6rem 0.9rem;
+  border-radius: 12px;
   font-size: 0.875rem;
-  white-space: nowrap;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   font-family: system-ui, -apple-system, sans-serif;
+  white-space: nowrap;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  z-index: 9998;
+  transition: opacity 0.2s ease;
+  pointer-events: auto;
+  cursor: default;
+}
+.aui-banner-bubble::after {
+  content: '';
+  position: absolute;
+  right: -8px;
+  top: 50%;
+  transform: translateY(-50%);
+  border-width: 8px 0 8px 8px;
+  border-style: solid;
+  border-color: transparent transparent transparent white;
+}
+.aui-banner-left::after {
+  right: auto;
+  left: -8px;
+  border-width: 8px 8px 8px 0;
+  border-color: transparent white transparent transparent;
 }
 `;
   document.head.appendChild(style);
 
   return function cleanup() {
     mediaQuery.removeListener(handleResponsive);
+    window.removeEventListener('message', handleMessage);
     chatButtonContainer.remove();
     chatContainer.remove();
+    if (bannerBubble) bannerBubble.remove();
     style.remove();
   };
   };
 
-  initializeWidget();
+  // Singleton guard: prevent double initialization
+  if (window.__scrivotWidgetCleanup) {
+    window.__scrivotWidgetCleanup();
+  }
+
+  let cleanup = initializeWidget();
+  window.__scrivotWidgetCleanup = cleanup;
+
+  // Recargar widget cuando se actualiza la configuración desde el dashboard
+  const handleConfigUpdated = function() {
+    if (typeof window.__scrivotWidgetCleanup === 'function') {
+      window.__scrivotWidgetCleanup();
+      window.__scrivotWidgetCleanup = null;
+    }
+    window.removeEventListener('scrivot:config-updated', handleConfigUpdated);
+    // Cargar nuevo script con cache-bust → toma config actualizada desde backend
+    var newScript = document.createElement('script');
+    newScript.src = baseUrl + '/api/widget?_cb=' + Date.now() + (jwt ? '&jwt=' + encodeURIComponent(jwt) : '');
+    newScript.async = true;
+    document.head.appendChild(newScript);
+  };
+  window.addEventListener('scrivot:config-updated', handleConfigUpdated);
 })(); 

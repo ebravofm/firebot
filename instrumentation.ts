@@ -1,17 +1,27 @@
-import { LangfuseSpanProcessor, ShouldExportSpan } from '@langfuse/otel';
-import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node';
+/**
+ * OpenTelemetry + Langfuse: solo en runtime Node (no Edge).
+ * Requiere: npm install en /firebot (incluye @langfuse/otel y @opentelemetry/sdk-trace-node).
+ */
 
-// Opcional: filtrar spans de infraestructura de Next.js
-const shouldExportSpan: ShouldExportSpan = (span) => {
-  return span.otelSpan.instrumentationScope.name !== 'next.js';
-};
+export async function register() {
+  if (process.env.NEXT_RUNTIME !== "nodejs") {
+    return;
+  }
 
-export const langfuseSpanProcessor = new LangfuseSpanProcessor({
-  shouldExportSpan,
-});
+  const langfuse = await import("@langfuse/otel");
+  const trace = await import("@opentelemetry/sdk-trace-node");
 
-const tracerProvider = new NodeTracerProvider({
-  spanProcessors: [langfuseSpanProcessor],
-});
+  const shouldExportSpan = (span: any) => {
+    return span.otelSpan.instrumentationScope.name !== "next.js";
+  };
 
-tracerProvider.register();
+  const langfuseSpanProcessor = new langfuse.LangfuseSpanProcessor({
+    shouldExportSpan,
+  });
+
+  const tracerProvider = new trace.NodeTracerProvider({
+    spanProcessors: [langfuseSpanProcessor],
+  });
+
+  tracerProvider.register();
+}

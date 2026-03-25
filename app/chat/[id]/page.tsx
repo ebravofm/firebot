@@ -11,23 +11,43 @@ import { loadChat } from "@/lib/chat-store";
 import { redirect, useParams } from "next/navigation";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 
-// Definimos una versión cliente de getChatbotConfig
+// Definimos una versión cliente de getChatbotConfig con retry
 async function getChatbotConfigClient(): Promise<ChatbotConfig | null> {
-  const jwt = storage.getJWT();
-  if (!jwt) return null;
-  
-  // Como getChatbotConfig ahora necesita leer de cookies en el servidor,
-  // y nosotros lo tenemos en localStorage, necesitamos o bien una API route
-  // o refactorizar getChatbotConfig para que pueda funcionar en cliente.
-  // Por simplicidad, vamos a refactorizar getChatbotConfig para que acepte el token.
-  
-  // Esta llamada fallará si getChatbotConfig usa `next/headers`.
-  // Es necesario un refactor mayor. Por ahora, asumiré que podemos crear una función
-  // que no dependa de `cookies()`.
-  
-  // Vamos a crear una nueva función en config.ts que acepte el token.
-  const config = await getChatbotConfig(jwt);
-  return config;
+  let jwt = storage.getJWT();
+
+  // Fallback: si no hay JWT en localStorage, intentar leer de la URL del iframe parent
+  if (!jwt && typeof window !== 'undefined') {
+    // Buscar JWT en los scripts del widget que nos cargaron
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const jwtFromUrl = urlParams.get('jwt');
+      if (jwtFromUrl) {
+        console.log('⚠️ getChatbotConfigClient: JWT found in URL, saving to localStorage');
+        storage.setJWT(jwtFromUrl);
+        jwt = jwtFromUrl;
+      }
+    } catch { /* ignore */ }
+  }
+
+  if (!jwt) {
+    console.warn('⚠️ getChatbotConfigClient: No JWT in localStorage or URL');
+    return null;
+  }
+
+  // Intentar hasta 3 veces con delay creciente (el backend puede estar arrancando)
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const config = await getChatbotConfig(jwt);
+      if (config) return config;
+      console.warn(`⚠️ getChatbotConfigClient: Intento ${attempt}/3 - config null`);
+    } catch (err) {
+      console.warn(`⚠️ getChatbotConfigClient: Intento ${attempt}/3 - error:`, err);
+    }
+    if (attempt < 3) {
+      await new Promise(resolve => setTimeout(resolve, attempt * 1500));
+    }
+  }
+  return null;
 }
 
 
@@ -50,12 +70,23 @@ export default function Page() {
 
       // Aplicar estilos del widget_appearance como CSS variables
       if (config.widget_appearance) {
-        const { primary_color, secondary_color, text_color, border_radius } = config.widget_appearance;
+        const wa = config.widget_appearance;
         const root = document.documentElement;
-        if (primary_color) root.style.setProperty('--primary', primary_color);
-        if (text_color) root.style.setProperty('--primary-foreground', text_color);
-        if (secondary_color) root.style.setProperty('--secondary', secondary_color);
-        if (border_radius != null) root.style.setProperty('--radius', `${border_radius}px`);
+        if (wa.primary_color) {
+          root.style.setProperty('--primary', wa.primary_color);
+          // También aplicar a accent y ring para coherencia visual
+          root.style.setProperty('--accent', wa.primary_color);
+          root.style.setProperty('--ring', wa.primary_color);
+        }
+        if (wa.text_color) {
+          root.style.setProperty('--primary-foreground', wa.text_color);
+        }
+        if (wa.secondary_color) {
+          root.style.setProperty('--secondary', wa.secondary_color);
+        }
+        if (wa.border_radius != null) {
+          root.style.setProperty('--radius', `${Math.min(wa.border_radius, 12)}px`);
+        }
       }
 
       // Solo guardar el threadId si es válido

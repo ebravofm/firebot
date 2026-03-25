@@ -5,6 +5,7 @@ import {
   ActionBarPrimitive,
   BranchPickerPrimitive,
   ErrorPrimitive,
+  useMessage,
 } from "@assistant-ui/react";
 import type { FC } from "react";
 import {
@@ -18,6 +19,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   Square,
+  MessageCircle,
 } from "lucide-react";
 
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
@@ -167,7 +169,7 @@ const Composer: FC<{ welcomeSuggestions: Array<{ label: string; title: string; a
         <ThreadWelcomeSuggestions welcomeSuggestions={welcomeSuggestions} />
       </ThreadPrimitive.Empty>
       {/* aui-composer-root */}
-      <ComposerPrimitive.Root className="relative flex w-full flex-row rounded-2xl focus-within:outline-2 focus-within:outline-black dark:focus-within:outline-white focus-within:outline-offset-0 h-[50px]">
+      <ComposerPrimitive.Root className="relative flex w-full flex-row rounded-2xl focus-within:outline-2 focus-within:outline-primary focus-within:outline-offset-0 h-[50px]">
         {/* aui-composer-input */}
         <div className="relative flex-1">
           <ComposerPrimitive.Input
@@ -221,11 +223,22 @@ const Composer: FC<{ welcomeSuggestions: Array<{ label: string; title: string; a
           </ThreadPrimitive.If>
         </div>
       </ComposerPrimitive.Root>
+      <div className="mt-1 flex items-center justify-center">
+        <p className="text-xs text-gray-400">
+          Powered by{" "}
+          <a
+            href="https://scrivot.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors underline decoration-gray-300 hover:decoration-gray-500"
+          >
+            scrivot
+          </a>
+        </p>
+      </div>
     </div>
   );
 };
-
-
 
 const MessageError: FC = () => {
   return (
@@ -240,7 +253,16 @@ const MessageError: FC = () => {
 };
 
 const AssistantMessage: FC = () => {
-  const { ui } = useChatbotConfig();
+  const { ui, config } = useChatbotConfig();
+  const message = useMessage();
+  const isInProgress = message.isLast && message.status?.type === "running";
+  const hasContent = (message.content ?? []).some(
+    (c: { type: string; text?: string }) => c.type === "text" && (c.text?.length ?? 0) > 0
+  );
+  const iconUrl = ui.assistant_icon_url;
+  const isBuiltinDefault = !iconUrl || iconUrl === "builtin:default";
+  const isBuiltinSparkles = iconUrl === "builtin:sparkles";
+
   return (
     <MessagePrimitive.Root asChild>
       <motion.div
@@ -251,30 +273,45 @@ const AssistantMessage: FC = () => {
         data-role="assistant"
       >
         {/* aui-assistant-message-avatar */}
-        <div className="ring-border bg-background col-start-1 row-start-1 flex size-8 shrink-0 items-center justify-center rounded-full ring-1 overflow-hidden">
-          {ui.assistant_icon_url ? (
-            <img src={ui.assistant_icon_url} alt="" className="size-full object-cover" />
-          ) : (
+        <div className="bg-gray-100 dark:bg-gray-800 col-start-1 row-start-1 flex size-8 shrink-0 items-center justify-center rounded-full overflow-hidden">
+          {isBuiltinDefault ? (
+            <MessageCircle className="size-4 text-gray-500" />
+          ) : isBuiltinSparkles ? (
             <StarIcon size={14} />
+          ) : iconUrl ? (
+            <img src={iconUrl} alt="" className="size-full object-cover" />
+          ) : (
+            <MessageCircle className="size-4 text-gray-500" />
           )}
         </div>
 
         {/* aui-assistant-message-content */}
-        <div className="text-foreground col-span-2 col-start-2 row-start-1 ml-4 leading-7 break-words">
-          <MessagePrimitive.Content
-            components={{
-              Text: MarkdownText,
-              tools: {
-                by_name: {
-                  rag_search: RagSearchToolUI,
-                },
-                ...(ui.enable_tool_fallback
-                  ? { Fallback: ToolFallback }
-                  : {}),
-              },
-            }}
-          />
-          <MessageError />
+        <div className="col-span-2 col-start-2 row-start-1 ml-4">
+          <div className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
+            {config?.name?.trim() || config?.welcome_message?.split('\n')[0]?.trim() || ui.header_title}
+          </div>
+          <div className="bg-muted text-foreground rounded-2xl px-4 py-2.5 leading-7 break-words">
+            {isInProgress && !hasContent ? (
+              <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                <span className="animate-pulse">{ui.loading_message || 'Pensando...'}</span>
+              </div>
+            ) : (
+              <MessagePrimitive.Content
+                components={{
+                  Text: MarkdownText,
+                  tools: {
+                    by_name: {
+                      rag_search: RagSearchToolUI,
+                    },
+                    ...(ui.enable_tool_fallback
+                      ? { Fallback: ToolFallback }
+                      : {}),
+                  },
+                }}
+              />
+            )}
+            <MessageError />
+          </div>
         </div>
 
         {ui.show_assistant_action_bar && (
@@ -329,7 +366,7 @@ const UserMessage: FC = () => {
         <UserActionBar />
 
         {/* aui-user-message-content */}
-        <div className="bg-muted text-foreground col-start-2 rounded-3xl px-5 py-2.5 break-words">
+        <div className="bg-primary text-primary-foreground col-start-2 rounded-3xl px-5 py-2.5 break-words">
           <MessagePrimitive.Content components={{ Text: MarkdownText }} />
         </div>
 

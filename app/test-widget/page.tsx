@@ -21,7 +21,7 @@ export default function TestWidgetPage() {
   const loadWidget = (jwtToken: string) => {
     // Crear script del widget con el JWT usando WIDGET_URL
     const script = document.createElement('script');
-    script.src = `${ENV_CONFIG.WIDGET_URL}/widget.js?jwt=${jwtToken}`;
+    script.src = `${ENV_CONFIG.WIDGET_URL}/widget.js?jwt=${encodeURIComponent(jwtToken)}`;
     script.async = true;
     script.onload = () => setWidgetLoaded(true);
     script.onerror = () => console.error('Error al cargar el widget');
