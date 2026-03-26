@@ -72,6 +72,7 @@ export const Assistant = ({
 
   // Detectar si viene del widget externo (source=widget) vs plataforma (preview/test)
   const [isExternalWidget, setIsExternalWidget] = useState(false);
+  const [showResetButton, setShowResetButton] = useState(false);
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
@@ -80,6 +81,15 @@ export const Assistant = ({
       console.log(`[Assistant] Source: ${isExternal ? 'widget externo' : 'plataforma (test)'}`);
     }
   }, []);
+
+  useEffect(() => {
+    if (!chatbotConfig?.workspace_id) return;
+    import('@/lib/config').then(({ fetchWidgetBehavior }) => {
+      fetchWidgetBehavior(chatbotConfig.workspace_id).then((b) => {
+        setShowResetButton(b.show_reset_button);
+      });
+    });
+  }, [chatbotConfig?.workspace_id]);
 
   // Detectar si estamos en un iframe (widget embebido)
   const [isEmbedded, setIsEmbedded] = useState(false);
@@ -409,7 +419,7 @@ export const Assistant = ({
             {isEmbedded ? (
               <ChatHeader
                 onClose={handleCloseWidget}
-                onReset={handleResetChat}
+                onReset={showResetButton ? handleResetChat : undefined}
               />
             ) : ui.show_header ? (
               <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">

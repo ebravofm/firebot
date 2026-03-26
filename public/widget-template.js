@@ -1,11 +1,11 @@
 (function (config = {}) {
-  // JWT: document.currentScript funciona al ejecutar /api/widget?jwt=... o widget.js?jwt=...
-  const getJWTFromScript = () => {
+  // Parametros desde document.currentScript, compatibles con /api/widget y widget.js
+  const getScriptParam = (paramName) => {
     const cur = document.currentScript;
     if (cur && cur.src) {
       try {
-        const j = new URL(cur.src).searchParams.get('jwt');
-        if (j) return j;
+        const value = new URL(cur.src).searchParams.get(paramName);
+        if (value) return value;
       } catch {
         /* ignore */
       }
@@ -15,9 +15,9 @@
       if (!script.src) continue;
       try {
         const url = new URL(script.src);
-        const j = url.searchParams.get('jwt');
-        if (j && (url.pathname.includes('widget.js') || url.pathname.includes('/api/widget'))) {
-          return j;
+        const value = url.searchParams.get(paramName);
+        if (value && (url.pathname.includes('widget.js') || url.pathname.includes('/api/widget'))) {
+          return value;
         }
       } catch {
         /* ignore */
@@ -26,7 +26,9 @@
     return null;
   };
 
-  const jwt = getJWTFromScript();
+  const jwt = getScriptParam('jwt');
+  const host = getScriptParam('host');
+  const isDashboardHost = host === 'dashboard';
   const baseUrl = '{{WIDGET_BASE_URL}}';
 
   const DEFAULT_CONFIG = {
@@ -53,6 +55,18 @@
       ...DEFAULT_CONFIG, 
       ...config 
     };
+
+    if (widgetConfig.enabled === false) {
+      return () => {};
+    }
+
+    if (isDashboardHost) {
+      const currentBottom = widgetConfig.position?.bottom || DEFAULT_CONFIG.position.bottom;
+      widgetConfig.position = {
+        ...widgetConfig.position,
+        bottom: `calc(${currentBottom} - 20px)`,
+      };
+    }
 
     // Continuar con la inicialización del widget usando widgetConfig
     return createWidget(widgetConfig);
@@ -215,6 +229,10 @@
     bannerBubble = document.createElement('div');
     bannerBubble.className = 'aui-banner-bubble' + (widgetConfig.position.left ? ' aui-banner-left' : '');
     bannerBubble.textContent = widgetConfig.bannerText;
+    // En dashboard evita bloquear clics sobre acciones del panel.
+    if (isDashboardHost) {
+      bannerBubble.style.pointerEvents = 'none';
+    }
     document.body.appendChild(bannerBubble);
 
     // Position banner next to the chat button (opposite side of screen edge)
@@ -580,7 +598,7 @@
     window.removeEventListener('scrivot:config-updated', handleConfigUpdated);
     // Cargar nuevo script con cache-bust → toma config actualizada desde backend
     var newScript = document.createElement('script');
-    newScript.src = baseUrl + '/api/widget?_cb=' + Date.now() + (jwt ? '&jwt=' + encodeURIComponent(jwt) : '');
+    newScript.src = baseUrl + '/api/widget?_cb=' + Date.now() + (jwt ? '&jwt=' + encodeURIComponent(jwt) : '') + (host ? '&host=' + encodeURIComponent(host) : '');
     newScript.async = true;
     document.head.appendChild(newScript);
   };

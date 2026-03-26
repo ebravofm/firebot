@@ -45,6 +45,9 @@ export async function GET(request: NextRequest) {
             const wm = config.widget_messages;
             // Build config object for widget-template.js
             const widgetCfg: Record<string, unknown> = {};
+            if (config.widget_enabled === false) {
+              widgetCfg.enabled = false;
+            }
 
             // Fetch widget_behavior for auto-open settings
             if (config.workspace_id) {
@@ -64,6 +67,9 @@ export async function GET(request: NextRequest) {
                   }
                   if (behavior?.display_mode && behavior.display_mode !== 'estandar') {
                     widgetCfg.displayMode = behavior.display_mode;
+                  }
+                  if (behavior?.show_reset_button === true) {
+                    widgetCfg.showResetButton = true;
                   }
                 }
               } catch {

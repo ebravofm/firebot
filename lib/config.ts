@@ -91,8 +91,23 @@ export function resolveUIConfig(config: ChatbotConfig | null) {
     banner_text: wm?.banner_text ?? '',
     banner_text_enable: wm?.banner_text_enable ?? false,
     loading_message: wm?.loading_message ?? 'Pensando...',
+    loading_message_enable: Boolean((wm?.loading_message ?? '').trim()),
     error_message: wm?.error_message ?? 'Error al procesar tu mensaje',
+    show_reset_button: false,
   };
+}
+
+export async function fetchWidgetBehavior(workspaceId: number): Promise<{ show_reset_button: boolean }> {
+  try {
+    const { data } = await supabase
+      .from('widget_behavior')
+      .select('show_reset_button')
+      .eq('workspace_id', workspaceId)
+      .maybeSingle();
+    return { show_reset_button: data?.show_reset_button === true };
+  } catch {
+    return { show_reset_button: false };
+  }
 }
 
 export type ResolvedUIConfig = ReturnType<typeof resolveUIConfig>;

@@ -292,9 +292,17 @@ const AssistantMessage: FC = () => {
           </div>
           <div className="bg-muted text-foreground rounded-2xl px-4 py-2.5 leading-7 break-words">
             {isInProgress && !hasContent ? (
-              <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                <span className="animate-pulse">{ui.loading_message || 'Pensando...'}</span>
-              </div>
+              ui.loading_message_enable ? (
+                <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                  <span className="animate-pulse">{ui.loading_message || "Pensando..."}</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1">
+                  <span className="h-2 w-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: "0ms" }} />
+                  <span className="h-2 w-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: "150ms" }} />
+                  <span className="h-2 w-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: "300ms" }} />
+                </div>
+              )
             ) : (
               <MessagePrimitive.Content
                 components={{

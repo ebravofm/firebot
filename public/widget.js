@@ -9,11 +9,12 @@
   const currentUrl = new URL(currentScript.src);
   const baseUrl = currentUrl.origin;
   const jwt = currentUrl.searchParams.get('jwt');
+  const host = currentUrl.searchParams.get('host');
   
   // Crear nuevo script con el endpoint dinámico (cache-bust para evitar versiones viejas)
   const newScript = document.createElement('script');
   const cacheBust = `_cb=${Date.now()}`;
-  newScript.src = `${baseUrl}/api/widget?${cacheBust}${jwt ? `&jwt=${encodeURIComponent(jwt)}` : ''}`;
+  newScript.src = `${baseUrl}/api/widget?${cacheBust}${jwt ? `&jwt=${encodeURIComponent(jwt)}` : ''}${host ? `&host=${encodeURIComponent(host)}` : ''}`;
   newScript.async = true;
   
   // Reemplazar el script actual

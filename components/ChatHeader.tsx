@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useChatbotConfig } from "@/lib/chatbot-config-context";
-import { Menu, X, Minus, Plus } from "lucide-react";
+import { Menu, X, Minus, Plus, RotateCcw } from "lucide-react";
 import { storage } from "@/lib/storage";
 
 interface ChatHeaderProps {
@@ -101,6 +101,17 @@ export function ChatHeader({ onClose, onReset }: ChatHeaderProps) {
 
       {/* Actions */}
       <div className="flex items-center gap-1.5">
+        {onReset && (
+          <button
+            type="button"
+            onClick={onReset}
+            className="rounded-md p-1.5 hover:bg-white/10 transition-colors"
+            style={{ color: textColor }}
+            aria-label="Reiniciar conversación"
+          >
+            <RotateCcw className="size-4" />
+          </button>
+        )}
         {showAccessibility && (
           <button
             ref={toggleRef}
