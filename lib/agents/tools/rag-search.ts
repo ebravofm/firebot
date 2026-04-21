@@ -4,7 +4,7 @@ import { searchRAG } from "@/lib/api/rag";
 import { getCollectionsByWorkspace } from "@/lib/config";
 
 export function createRagSearchTool({ 
-  maxResults = 3,
+  maxResults = 10,
   threadId 
 }: { 
   maxResults?: number;
