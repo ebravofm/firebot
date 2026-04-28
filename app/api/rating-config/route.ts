@@ -30,7 +30,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(null);
     }
 
-    const data = await res.json();
+    const raw = await res.text();
+    if (!raw.trim()) {
+      return NextResponse.json(null);
+    }
+
+    const data = JSON.parse(raw);
     return NextResponse.json(data);
   } catch (error) {
     console.error('Error in rating-config API route:', error);
