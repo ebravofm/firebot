@@ -227,7 +227,7 @@ const Composer: FC<{ welcomeSuggestions: Array<{ label: string; title: string; a
         <p className="text-xs text-gray-400">
           Powered by{" "}
           <a
-            href="https://scrivot.com"
+            href="https://scrivot.cl"
             target="_blank"
             rel="noopener noreferrer"
             className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors underline decoration-gray-300 hover:decoration-gray-500"
