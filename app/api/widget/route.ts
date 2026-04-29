@@ -36,8 +36,20 @@ export async function GET(request: NextRequest) {
         const chatbotId = payload?.chatbot_id;
         if (chatbotId) {
           const backendUrl = ENV_CONFIG.BACKEND_URL;
+
+          // Pasar el Referer del browser como X-Embedding-Origin para que el backend
+          // pueda validar que el dominio solicitante está autorizado para este chatbot.
+          const browserReferer = request.headers.get('referer') || request.headers.get('origin') || '';
+          const embeddingHeaders: Record<string, string> = {
+            'Authorization': `Bearer ${jwt}`,
+            'Content-Type': 'application/json',
+          };
+          if (browserReferer) {
+            embeddingHeaders['X-Embedding-Origin'] = browserReferer;
+          }
+
           const res = await fetch(`${backendUrl}/chatbot-config/${chatbotId}`, {
-            headers: { 'Authorization': `Bearer ${jwt}`, 'Content-Type': 'application/json' },
+            headers: embeddingHeaders,
           });
           if (res.ok) {
             const config = await res.json();

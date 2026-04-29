@@ -24,7 +24,14 @@ export default function CreateChatPage() {
         router.replace(`/chat/${id}`);
       } catch (error) {
         console.error("Failed to create chat:", error);
-        // Opcional: redirigir a una página de error más específica
+
+        // Límite de conversaciones del plan Free alcanzado
+        if (error instanceof Error && error.message.startsWith("CONVERSATION_LIMIT_REACHED")) {
+          const [, used, limit] = error.message.split(":");
+          router.replace(`/error-limit?used=${used}&limit=${limit}`);
+          return;
+        }
+
         router.replace("/error-access");
       }
     }

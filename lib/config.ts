@@ -304,8 +304,10 @@ export async function getChatbotConfig(jwtToken?: string | null): Promise<Chatbo
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${token}`,
-        ...(typeof document !== 'undefined' && document.referrer
-          ? { "X-Embedding-Origin": document.referrer }
+        // Usar window.location.origin para indicar desde qué dominio se carga el widget.
+        // document.referrer indica la página anterior, no el sitio actual donde está incrustado.
+        ...(typeof window !== 'undefined' && window.location?.origin
+          ? { "X-Embedding-Origin": window.location.origin }
           : {}),
       },
     });

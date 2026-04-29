@@ -2,6 +2,7 @@ import { type UIMessage } from "ai";
 import { supabase } from "../lib/supabase-client";
 import { getChatbotConfig } from "../lib/config";
 import { storage } from "./storage";
+import { ENV_CONFIG } from "./env";
 
 interface DatabaseMessage {
   id: string;
@@ -25,10 +26,51 @@ function normalizeMessageSignature(message: UIMessage): string {
 export async function createChat(): Promise<string> {
   // Obtener la configuración del chatbot para obtener el workspace_id
   const chatbotConfig = await getChatbotConfig();
-  
+
   if (!chatbotConfig) {
     throw new Error("No se pudo obtener la configuración del chatbot");
   }
+
+  // ── Límite de conversaciones Free ──────────────────────────────────────────
+  // Verificar si el workspace puede iniciar una nueva conversación antes de
+  // crear el thread. Solo aplica al plan Free (30 conversaciones/mes).
+  // El token JWT del widget autentica esta llamada.
+  try {
+    const token = typeof window !== "undefined" ? storage.getJWT() : null;
+    if (token) {
+      const usageUrl = `${ENV_CONFIG.BACKEND_URL}/billing/workspace/${chatbotConfig.workspace_id}/usage`;
+      const usageRes = await fetch(usageUrl, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (usageRes.ok) {
+        const usage = await usageRes.json() as {
+          allowed: boolean;
+          used: number;
+          limit: number | null;
+          plan: string;
+        };
+        if (!usage.allowed) {
+          throw new Error(
+            `CONVERSATION_LIMIT_REACHED:${usage.used}:${usage.limit}`,
+          );
+        }
+      }
+      // Si la llamada falla (red, 4xx, etc.) dejamos continuar — evitamos
+      // bloquear al usuario por errores del servicio de billing.
+    }
+  } catch (err) {
+    // Re-lanzar solo si es un límite de conversaciones alcanzado
+    if (err instanceof Error && err.message.startsWith("CONVERSATION_LIMIT_REACHED")) {
+      throw err;
+    }
+    // Otros errores de red: loguear y continuar
+    console.warn("[createChat] No se pudo verificar el límite de conversaciones:", err);
+  }
+  // ──────────────────────────────────────────────────────────────────────────
 
   const { data, error } = await supabase
     .from("threads")
