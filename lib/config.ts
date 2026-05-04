@@ -60,6 +60,7 @@ export type ChatbotConfig = {
   openai_model?: string | null;
   widget_appearance: WidgetAppearance | null;
   widget_messages: WidgetMessages | null;
+  show_powered_by?: boolean | null;
 };
 
 // ============================================================================
@@ -86,6 +87,7 @@ export function resolveUIConfig(config: ChatbotConfig | null) {
     assistant_icon_url: iconUrl,
     // Widget appearance properties
     widget_appearance: config?.widget_appearance ?? null,
+    show_powered_by: config?.show_powered_by !== false,
     // Widget messages properties
     header_title: wm?.header_title ?? 'Asistente Virtual',
     header_subtitle: wm?.header_subtitle ?? '',
@@ -98,19 +100,18 @@ export function resolveUIConfig(config: ChatbotConfig | null) {
   };
 }
 
-export async function fetchWidgetBehavior(workspaceId: number): Promise<{ show_reset_button: boolean; show_powered_by: boolean }> {
+export async function fetchWidgetBehavior(workspaceId: number): Promise<{ show_reset_button: boolean }> {
   try {
     const { data } = await supabase
       .from('widget_behavior')
-      .select('show_reset_button, show_powered_by')
+      .select('show_reset_button')
       .eq('workspace_id', workspaceId)
       .maybeSingle();
     return {
       show_reset_button: data?.show_reset_button === true,
-      show_powered_by: data?.show_powered_by !== false,
     };
   } catch {
-    return { show_reset_button: false, show_powered_by: true };
+    return { show_reset_button: false };
   }
 }
 

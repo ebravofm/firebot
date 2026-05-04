@@ -224,7 +224,7 @@ const Composer: FC<{ welcomeSuggestions: Array<{ label: string; title: string; a
           </ThreadPrimitive.If>
         </div>
       </ComposerPrimitive.Root>
-      {showPoweredBy !== false && (
+      {showPoweredBy && (
       <div className="mt-1 flex items-center justify-center">
         <p className="text-xs text-gray-400">
           Powered by{" "}

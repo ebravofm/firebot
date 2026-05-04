@@ -73,7 +73,7 @@ export const Assistant = ({
   // Detectar si viene del widget externo (source=widget) vs plataforma (preview/test)
   const [isExternalWidget, setIsExternalWidget] = useState(false);
   const [showResetButton, setShowResetButton] = useState(false);
-  const [showPoweredBy, setShowPoweredBy] = useState(true);
+  const showPoweredBy = ui.show_powered_by;
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
@@ -88,7 +88,6 @@ export const Assistant = ({
     import('@/lib/config').then(({ fetchWidgetBehavior }) => {
       fetchWidgetBehavior(chatbotConfig.workspace_id).then((b) => {
         setShowResetButton(b.show_reset_button);
-        setShowPoweredBy(b.show_powered_by);
       });
     });
   }, [chatbotConfig?.workspace_id]);
