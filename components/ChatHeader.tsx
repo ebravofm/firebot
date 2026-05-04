@@ -17,13 +17,13 @@ export function ChatHeader({ onClose, onReset }: ChatHeaderProps) {
   const bgColor = wa?.primary_color ?? "#5B4FFF";
   const textColor = wa?.text_color ?? "#ffffff";
   const iconUrl = ui.assistant_icon_url;
+  const isBuiltinDefault = !iconUrl || iconUrl === "builtin:default";
+  const isBuiltinSparkles = iconUrl === "builtin:sparkles";
+  const isCustomIcon = !isBuiltinDefault && !isBuiltinSparkles && Boolean(iconUrl);
+  const preserveOriginal = wa?.custom_icon_preserve_original ?? false;
   const enableFontZoom = wa?.enable_font_zoom ?? false;
   const enableHighContrast = wa?.enable_high_contrast_toggle ?? false;
   const showAccessibility = enableFontZoom || enableHighContrast;
-
-  // Resolve builtin icon types
-  const isBuiltinDefault = !iconUrl || iconUrl === "builtin:default";
-  const isBuiltinSparkles = iconUrl === "builtin:sparkles";
 
   // Accessibility menu state
   const [menuOpen, setMenuOpen] = useState(false);
@@ -74,13 +74,19 @@ export function ChatHeader({ onClose, onReset }: ChatHeaderProps) {
     >
       <div className="flex items-center gap-2.5">
         {/* Icon */}
-        <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-white/20 overflow-hidden">
+        <div
+          className={`flex size-8 shrink-0 items-center justify-center ${
+            isCustomIcon && preserveOriginal
+              ? "rounded-none overflow-visible"
+              : "rounded-full bg-white/20 overflow-hidden"
+          }`}
+        >
           {isBuiltinDefault ? (
             <DefaultChatIcon color={textColor} />
           ) : isBuiltinSparkles ? (
             <SparklesIcon color={textColor} />
           ) : iconUrl ? (
-            <img src={iconUrl} alt="" className="size-full object-cover" />
+            <img src={iconUrl} alt="" className={`size-full ${preserveOriginal ? "object-contain" : "object-cover"}`} />
           ) : (
             <DefaultChatIcon color={textColor} />
           )}

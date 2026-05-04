@@ -35,7 +35,8 @@ export const Thread: FC<{
   welcomeTitle: string; 
   welcomeSubtitle: string;
   welcomeSuggestions: Array<{ label: string; title: string; action: string }>;
-}> = ({ welcomeTitle, welcomeSubtitle, welcomeSuggestions }) => {
+  showPoweredBy?: boolean;
+}> = ({ welcomeTitle, welcomeSubtitle, welcomeSuggestions, showPoweredBy = true }) => {
   return (
     <ThreadPrimitive.Root
       // aui-thread-root
@@ -63,7 +64,7 @@ export const Thread: FC<{
         </ThreadPrimitive.If>
       </ThreadPrimitive.Viewport>
 
-      <Composer welcomeSuggestions={welcomeSuggestions} />
+      <Composer welcomeSuggestions={welcomeSuggestions} showPoweredBy={showPoweredBy} />
     </ThreadPrimitive.Root>
   );
 };
@@ -159,7 +160,7 @@ const ThreadWelcomeSuggestions: FC<{ welcomeSuggestions: Array<{ label: string; 
   );
 };
 
-const Composer: FC<{ welcomeSuggestions: Array<{ label: string; title: string; action: string }> }> = ({ welcomeSuggestions }) => {
+const Composer: FC<{ welcomeSuggestions: Array<{ label: string; title: string; action: string }>; showPoweredBy?: boolean }> = ({ welcomeSuggestions, showPoweredBy = true }) => {
   const { ui } = useChatbotConfig();
   return (
     // aui-composer-wrapper
@@ -223,6 +224,7 @@ const Composer: FC<{ welcomeSuggestions: Array<{ label: string; title: string; a
           </ThreadPrimitive.If>
         </div>
       </ComposerPrimitive.Root>
+      {showPoweredBy !== false && (
       <div className="mt-1 flex items-center justify-center">
         <p className="text-xs text-gray-400">
           Powered by{" "}
@@ -236,6 +238,7 @@ const Composer: FC<{ welcomeSuggestions: Array<{ label: string; title: string; a
           </a>
         </p>
       </div>
+      )}
     </div>
   );
 };
@@ -262,6 +265,13 @@ const AssistantMessage: FC = () => {
   const iconUrl = ui.assistant_icon_url;
   const isBuiltinDefault = !iconUrl || iconUrl === "builtin:default";
   const isBuiltinSparkles = iconUrl === "builtin:sparkles";
+  const wa = ui.widget_appearance;
+  const preserveOriginal = !isBuiltinDefault && !isBuiltinSparkles && !!iconUrl && (wa?.custom_icon_preserve_original ?? false);
+  const isCustomImg = !isBuiltinDefault && !isBuiltinSparkles && !!iconUrl;
+  const avatarShell =
+    isCustomImg && preserveOriginal
+      ? "rounded-none bg-transparent overflow-visible"
+      : "rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden";
 
   return (
     <MessagePrimitive.Root asChild>
@@ -273,13 +283,13 @@ const AssistantMessage: FC = () => {
         data-role="assistant"
       >
         {/* aui-assistant-message-avatar */}
-        <div className="bg-gray-100 dark:bg-gray-800 col-start-1 row-start-1 flex size-8 shrink-0 items-center justify-center rounded-full overflow-hidden">
+        <div className={`col-start-1 row-start-1 flex size-8 shrink-0 items-center justify-center ${avatarShell}`}>
           {isBuiltinDefault ? (
             <MessageCircle className="size-4 text-gray-500" />
           ) : isBuiltinSparkles ? (
             <StarIcon size={14} />
           ) : iconUrl ? (
-            <img src={iconUrl} alt="" className="size-full object-cover" />
+            <img src={iconUrl} alt="" className={`size-full ${preserveOriginal ? "object-contain" : "object-cover"}`} />
           ) : (
             <MessageCircle className="size-4 text-gray-500" />
           )}

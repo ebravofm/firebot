@@ -16,6 +16,7 @@ export type WidgetAppearance = {
   animate_bubble_chatbot: boolean | null;
   enable_font_zoom: boolean | null;
   enable_high_contrast_toggle: boolean | null;
+  custom_icon_preserve_original: boolean | null;
 };
 
 export type WidgetMessages = {
@@ -97,16 +98,19 @@ export function resolveUIConfig(config: ChatbotConfig | null) {
   };
 }
 
-export async function fetchWidgetBehavior(workspaceId: number): Promise<{ show_reset_button: boolean }> {
+export async function fetchWidgetBehavior(workspaceId: number): Promise<{ show_reset_button: boolean; show_powered_by: boolean }> {
   try {
     const { data } = await supabase
       .from('widget_behavior')
-      .select('show_reset_button')
+      .select('show_reset_button, show_powered_by')
       .eq('workspace_id', workspaceId)
       .maybeSingle();
-    return { show_reset_button: data?.show_reset_button === true };
+    return {
+      show_reset_button: data?.show_reset_button === true,
+      show_powered_by: data?.show_powered_by !== false,
+    };
   } catch {
-    return { show_reset_button: false };
+    return { show_reset_button: false, show_powered_by: true };
   }
 }
 
@@ -225,7 +229,7 @@ export async function getChatbotConfigFromThread(threadId: string): Promise<Chat
     const [{ data: wa }, { data: wm }] = await Promise.all([
       supabase
         .from("widget_appearance")
-        .select("primary_color, secondary_color, text_color, border_radius, position, widget_size, icon_url, animate_bubble_chatbot, enable_font_zoom, enable_high_contrast_toggle")
+        .select("primary_color, secondary_color, text_color, border_radius, position, widget_size, icon_url, animate_bubble_chatbot, enable_font_zoom, enable_high_contrast_toggle, custom_icon_preserve_original")
         .eq("workspace_id", thread.workspace_id)
         .maybeSingle(),
       supabase

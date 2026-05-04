@@ -118,6 +118,9 @@ export async function GET(request: NextRequest) {
               if (wa.animate_bubble_chatbot != null) {
                 widgetCfg.animateBubble = wa.animate_bubble_chatbot;
               }
+              if (wa.custom_icon_preserve_original != null) {
+                widgetCfg.customIconPreserveOriginal = wa.custom_icon_preserve_original;
+              }
             }
             // Fetch widget_rating_config for rating settings
             if (config.workspace_id) {

@@ -207,19 +207,48 @@
     const avatarImg = document.createElement('img');
     avatarImg.src = widgetConfig.avatar;
     avatarImg.alt = '';
-    avatarImg.className = 'aui-modal-button-closed-icon';
     avatarImg.setAttribute('data-state', 'closed');
-    Object.assign(avatarImg.style, {
-      width: '85%',
-      height: '85%',
-      objectFit: 'contain',
-    });
-    // Override closedIcon to point to the image so toggle updates it correctly
-    closedIcon = avatarImg;
-    chatButton.append(avatarImg, openIcon, srOnlySpan);
+
+    if (widgetConfig.customIconPreserveOriginal) {
+      // Respect original — no background plate, contain within button area
+      avatarImg.className = 'aui-modal-button-closed-icon';
+      Object.assign(avatarImg.style, {
+        width: '85%',
+        height: '85%',
+        objectFit: 'contain',
+      });
+      closedIcon = avatarImg;
+      chatButton.append(avatarImg, openIcon, srOnlySpan);
+    } else {
+      // Integrated mode — white circular plate behind the logo
+      const plate = document.createElement('div');
+      plate.className = 'aui-modal-button-closed-icon';
+      plate.setAttribute('data-state', 'closed');
+      Object.assign(plate.style, {
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '80%',
+        height: '80%',
+        borderRadius: '9999px',
+        backgroundColor: '#ffffff',
+        overflow: 'hidden',
+      });
+      Object.assign(avatarImg.style, {
+        width: '90%',
+        height: '90%',
+        objectFit: 'cover',
+      });
+      plate.appendChild(avatarImg);
+      closedIcon = plate;
+      chatButton.append(plate, openIcon, srOnlySpan);
+    }
   } else {
     // Use the builtin SVG icon (default=chat bubble, sparkles=sparkles)
     chatButton.append(closedIcon, openIcon, srOnlySpan);
+  }
+  if (widgetConfig.customIconPreserveOriginal && widgetConfig.avatar && !widgetConfig.avatar.startsWith('builtin:')) {
+    chatButton.classList.add('aui-fab-preserve-original');
   }
   chatButtonContainer.appendChild(chatButton);
 
@@ -535,6 +564,20 @@
 }
 .aui-button-primary:hover {
   background-color: var(--widget-primary-color-hover);
+}
+
+/* FAB sin fondo de color cuando se respeta imagen original (solo estado cerrado) */
+.aui-modal-button.aui-button-primary.aui-fab-preserve-original[data-state="closed"] {
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+.aui-modal-button.aui-button-primary.aui-fab-preserve-original[data-state="closed"]:hover {
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+.aui-modal-button.aui-button-primary.aui-fab-preserve-original[data-state="open"],
+.aui-modal-button.aui-button-primary.aui-fab-preserve-original[data-state="open"]:hover {
+  background-color: var(--widget-primary-color) !important;
 }
 
 .aui-banner-bubble {
