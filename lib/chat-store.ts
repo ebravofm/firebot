@@ -126,6 +126,15 @@ export async function loadChat(id: string): Promise<UIMessage[]> {
     });
   };
 
+  const isWhatsAppProvider = (parts: unknown[]): boolean => {
+    if (!Array.isArray(parts)) return false;
+    return parts.some((p: unknown) => {
+      if (!p || typeof p !== 'object') return false;
+      const pm = (p as { providerMetadata?: { whatsapp?: unknown } }).providerMetadata;
+      return !!(pm && 'whatsapp' in pm);
+    });
+  };
+
   const isAIProvider = (parts: unknown[]): boolean => {
     if (!Array.isArray(parts)) return false;
     return parts.some((p: unknown) => {
@@ -149,9 +158,13 @@ export async function loadChat(id: string): Promise<UIMessage[]> {
     // El mensaje de apertura (opening) siempre se muestra; no tiene metadata de proveedor
     if (m.id === 'opening-message' && m.role === 'assistant') return true;
 
-    // Mensajes assistant: mostrar tanto los de IA como los de operador humano
+    // Mensajes assistant: IA (widget), operador humano, o respuestas WhatsApp Cloud API
     if (m.role === 'assistant') {
-      return isAIProvider(m.parts as unknown[]) || isHumanProvider(m.parts as unknown[]);
+      return (
+        isAIProvider(m.parts as unknown[]) ||
+        isHumanProvider(m.parts as unknown[]) ||
+        isWhatsAppProvider(m.parts as unknown[])
+      );
     }
     return true;
   });
