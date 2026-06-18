@@ -80,7 +80,22 @@ RESTRICCIONES DE COMPORTAMIENTO (NO NEGOCIABLES):
 
   const systemPrompt = baseSystemPrompt + collectionsText + scopeGuardrail;
   const modelId = chatbotConfig?.openai_model ?? ENV_CONFIG.OPENAI_MODEL ?? "gpt-4o-mini";
-  const modelMessages = await convertToModelMessages(messages);
+  // providerMetadata (p. ej. whatsapp) es solo para loadChat; el SDK no lo acepta al convertir.
+  const modelMessages = await convertToModelMessages(
+    messages.map((m) => ({
+      ...m,
+      parts: (m.parts ?? []).map((part) => {
+        if (!part || typeof part !== "object" || !("providerMetadata" in part)) {
+          return part;
+        }
+        const { providerMetadata: _pm, ...rest } = part as {
+          providerMetadata?: unknown;
+          [key: string]: unknown;
+        };
+        return rest;
+      }),
+    })),
+  );
 
   return {
     chatbotConfig,
