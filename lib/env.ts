@@ -19,4 +19,10 @@ export const ENV_CONFIG = {
   LANGFUSE_PUBLIC_KEY: process.env.LANGFUSE_PUBLIC_KEY || '',
   LANGFUSE_SECRET_KEY: process.env.LANGFUSE_SECRET_KEY || '',
   LANGFUSE_HOST: process.env.LANGFUSE_HOST || 'https://cloud.langfuse.com',
+  /** Token compartido con scrivot-backend para POST /api/chat/respond (WhatsApp 3b) */
+  FIREBOT_INTERNAL_TOKEN: process.env.FIREBOT_INTERNAL_TOKEN || '',
+  /** Log warning si generateText supera este umbral (ms) */
+  CHAT_RESPOND_SLOW_WARN_MS: Number(process.env.CHAT_RESPOND_SLOW_WARN_MS) || 15_000,
+  /** Log crítico antes del timeout de la ruta (maxDuration 60s) */
+  CHAT_RESPOND_CRITICAL_MS: Number(process.env.CHAT_RESPOND_CRITICAL_MS) || 45_000,
 } as const;
