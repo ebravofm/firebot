@@ -7,6 +7,7 @@ export type SalesConfig = {
   collectBuyerEmail: boolean;
   collectShippingAddress: boolean;
   confirmBeforeLink: boolean;
+  freeMode: boolean;
 };
 
 export const DEFAULT_SALES_CONFIG: SalesConfig = {
@@ -16,6 +17,7 @@ export const DEFAULT_SALES_CONFIG: SalesConfig = {
   collectBuyerEmail: false,
   collectShippingAddress: true,
   confirmBeforeLink: true,
+  freeMode: false,
 };
 
 export async function fetchSalesConfig(
@@ -25,7 +27,7 @@ export async function fetchSalesConfig(
     const { data, error } = await supabase
       .from("sales_config")
       .select(
-        "payment_links_enabled, collect_buyer_name, collect_buyer_phone, collect_buyer_email, collect_shipping_address, confirm_before_link",
+        "payment_links_enabled, collect_buyer_name, collect_buyer_phone, collect_buyer_email, collect_shipping_address, confirm_before_link, free_mode",
       )
       .eq("workspace_id", workspaceId)
       .maybeSingle();
@@ -41,6 +43,7 @@ export async function fetchSalesConfig(
       collectBuyerEmail: data.collect_buyer_email === true,
       collectShippingAddress: data.collect_shipping_address !== false,
       confirmBeforeLink: data.confirm_before_link !== false,
+      freeMode: data.free_mode === true,
     };
   } catch {
     return DEFAULT_SALES_CONFIG;
@@ -62,6 +65,27 @@ export async function fetchMercadoPagoConnected(
   } catch {
     return false;
   }
+}
+
+export function buildCatalogInstructions(freeMode: boolean): string {
+  if (freeMode) {
+    return `
+
+---
+PRODUCTOS (MODO LIBRE):
+No hay catálogo de productos. No uses rag_search para buscar productos o precios del negocio.
+Cuando el comprador quiera comprar o pagar:
+1. Pregúntale qué quiere comprar (título/descripción del producto o servicio).
+2. Pregúntale el precio/monto.
+3. Confirma ambos datos con el comprador. No inventes precios ni nombres.
+4. Con título y monto confirmados, continúa con el flujo de pago si está disponible.`;
+  }
+
+  return `
+
+---
+PRODUCTOS:
+Cuando el comprador pregunte por productos, precios o disponibilidad, usa rag_search sobre la colección Productos (si está listada) para obtener la información. No inventes precios ni disponibilidad.`;
 }
 
 export function buildPaymentLinkInstructions(
