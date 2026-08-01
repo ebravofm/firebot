@@ -96,7 +96,7 @@ export function resolveUIConfig(config: ChatbotConfig | null) {
     loading_message: wm?.loading_message ?? 'Pensando...',
     loading_message_enable: Boolean((wm?.loading_message ?? '').trim()),
     error_message: wm?.error_message ?? 'Error al procesar tu mensaje',
-    show_reset_button: false,
+    show_reset_button: true,
   };
 }
 
@@ -108,10 +108,10 @@ export async function fetchWidgetBehavior(workspaceId: number): Promise<{ show_r
       .eq('workspace_id', workspaceId)
       .maybeSingle();
     return {
-      show_reset_button: data?.show_reset_button === true,
+      show_reset_button: data?.show_reset_button !== false,
     };
   } catch {
-    return { show_reset_button: false };
+    return { show_reset_button: true };
   }
 }
 

@@ -72,7 +72,7 @@ export const Assistant = ({
 
   // Detectar si viene del widget externo (source=widget) vs plataforma (preview/test)
   const [isExternalWidget, setIsExternalWidget] = useState(false);
-  const [showResetButton, setShowResetButton] = useState(false);
+  const [showResetButton, setShowResetButton] = useState(true);
   const showPoweredBy = ui.show_powered_by;
   useEffect(() => {
     if (typeof window !== 'undefined') {

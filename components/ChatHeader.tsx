@@ -21,8 +21,8 @@ export function ChatHeader({ onClose, onReset }: ChatHeaderProps) {
   const isBuiltinSparkles = iconUrl === "builtin:sparkles";
   const isCustomIcon = !isBuiltinDefault && !isBuiltinSparkles && Boolean(iconUrl);
   const preserveOriginal = wa?.custom_icon_preserve_original ?? false;
-  const enableFontZoom = wa?.enable_font_zoom ?? false;
-  const enableHighContrast = wa?.enable_high_contrast_toggle ?? false;
+  const enableFontZoom = wa?.enable_font_zoom ?? true;
+  const enableHighContrast = wa?.enable_high_contrast_toggle ?? true;
   const showAccessibility = enableFontZoom || enableHighContrast;
 
   // Accessibility menu state

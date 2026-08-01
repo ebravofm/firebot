@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
                   if (behavior?.display_mode && behavior.display_mode !== 'estandar') {
                     widgetCfg.displayMode = behavior.display_mode;
                   }
-                  if (behavior?.show_reset_button === true) {
+                  if (behavior?.show_reset_button !== false) {
                     widgetCfg.showResetButton = true;
                   }
                 }
