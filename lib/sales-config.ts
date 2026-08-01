@@ -1,4 +1,4 @@
-import { supabase } from "./supabase-client";
+import { ENV_CONFIG } from "@/lib/env";
 
 export type SalesConfig = {
   paymentLinksEnabled: boolean;
@@ -10,8 +10,9 @@ export type SalesConfig = {
   freeMode: boolean;
 };
 
-export const DEFAULT_SALES_CONFIG: SalesConfig = {
-  paymentLinksEnabled: true,
+/** Safe fallback when agent-context is unavailable: payments stay off. */
+export const INACTIVE_SALES_CONFIG: SalesConfig = {
+  paymentLinksEnabled: false,
   collectBuyerName: true,
   collectBuyerPhone: true,
   collectBuyerEmail: false,
@@ -20,50 +21,73 @@ export const DEFAULT_SALES_CONFIG: SalesConfig = {
   freeMode: false,
 };
 
-export async function fetchSalesConfig(
-  workspaceId: number,
-): Promise<SalesConfig> {
-  try {
-    const { data, error } = await supabase
-      .from("sales_config")
-      .select(
-        "payment_links_enabled, collect_buyer_name, collect_buyer_phone, collect_buyer_email, collect_shipping_address, confirm_before_link, free_mode",
-      )
-      .eq("workspace_id", workspaceId)
-      .maybeSingle();
+export type AgentSalesContext = {
+  salesConfig: SalesConfig;
+  mpConnected: boolean;
+  paymentsActive: boolean;
+};
 
-    if (error || !data) {
-      return DEFAULT_SALES_CONFIG;
+/**
+ * Single backend round-trip for sales config + MP connection.
+ * Replaces direct Supabase reads of sales_config / mercadopago_connection.
+ */
+export async function fetchAgentSalesContext(
+  threadId: string,
+): Promise<AgentSalesContext> {
+  const inactive: AgentSalesContext = {
+    salesConfig: INACTIVE_SALES_CONFIG,
+    mpConnected: false,
+    paymentsActive: false,
+  };
+
+  if (!ENV_CONFIG.BACKEND_URL) {
+    console.error("BACKEND_URL no está definido");
+    return inactive;
+  }
+
+  try {
+    const response = await fetch(
+      `${ENV_CONFIG.BACKEND_URL}/integrations/mercadopago/agent-context`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ thread_id: threadId }),
+      },
+    );
+
+    if (!response.ok) {
+      const text = await response.text().catch(() => "");
+      console.error(`agent-context failed: ${response.status} ${text}`);
+      return inactive;
     }
 
-    return {
-      paymentLinksEnabled: data.payment_links_enabled !== false,
-      collectBuyerName: data.collect_buyer_name !== false,
-      collectBuyerPhone: data.collect_buyer_phone !== false,
-      collectBuyerEmail: data.collect_buyer_email === true,
-      collectShippingAddress: data.collect_shipping_address !== false,
-      confirmBeforeLink: data.confirm_before_link !== false,
-      freeMode: data.free_mode === true,
+    const data = (await response.json()) as {
+      salesConfig?: Partial<SalesConfig>;
+      mpConnected?: boolean;
+      paymentsActive?: boolean;
     };
-  } catch {
-    return DEFAULT_SALES_CONFIG;
-  }
-}
 
-export async function fetchMercadoPagoConnected(
-  workspaceId: number,
-): Promise<boolean> {
-  try {
-    const { data, error } = await supabase
-      .from("mercadopago_connection")
-      .select("status")
-      .eq("workspace_id", workspaceId)
-      .maybeSingle();
+    const salesConfig: SalesConfig = {
+      paymentLinksEnabled: data.salesConfig?.paymentLinksEnabled === true,
+      collectBuyerName: data.salesConfig?.collectBuyerName !== false,
+      collectBuyerPhone: data.salesConfig?.collectBuyerPhone !== false,
+      collectBuyerEmail: data.salesConfig?.collectBuyerEmail === true,
+      collectShippingAddress:
+        data.salesConfig?.collectShippingAddress !== false,
+      confirmBeforeLink: data.salesConfig?.confirmBeforeLink !== false,
+      freeMode: data.salesConfig?.freeMode === true,
+    };
 
-    if (error || !data) return false;
-    return data.status === "connected";
-  } catch {
-    return false;
+    const mpConnected = data.mpConnected === true;
+    const paymentsActive =
+      typeof data.paymentsActive === "boolean"
+        ? data.paymentsActive
+        : salesConfig.paymentLinksEnabled && mpConnected;
+
+    return { salesConfig, mpConnected, paymentsActive };
+  } catch (error) {
+    console.error("fetchAgentSalesContext error:", error);
+    return inactive;
   }
 }
 

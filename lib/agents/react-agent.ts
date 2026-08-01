@@ -19,9 +19,8 @@ import { ENV_CONFIG } from "@/lib/env";
 import {
   buildCatalogInstructions,
   buildPaymentLinkInstructions,
-  DEFAULT_SALES_CONFIG,
-  fetchMercadoPagoConnected,
-  fetchSalesConfig,
+  fetchAgentSalesContext,
+  INACTIVE_SALES_CONFIG,
   type SalesConfig,
 } from "@/lib/sales-config";
 
@@ -75,18 +74,13 @@ async function prepareAgentRun({
     ? await getChatbotConfigFromThread(chatId)
     : await getChatbotConfig(jwtToken);
 
-  let salesConfig: SalesConfig = DEFAULT_SALES_CONFIG;
-  let mpConnected = false;
-  if (chatbotConfig?.workspace_id) {
-    const [cfg, connected] = await Promise.all([
-      fetchSalesConfig(chatbotConfig.workspace_id),
-      fetchMercadoPagoConnected(chatbotConfig.workspace_id),
-    ]);
-    salesConfig = cfg;
-    mpConnected = connected;
+  let salesConfig: SalesConfig = INACTIVE_SALES_CONFIG;
+  let paymentsActive = false;
+  if (chatId) {
+    const ctx = await fetchAgentSalesContext(chatId);
+    salesConfig = ctx.salesConfig;
+    paymentsActive = ctx.paymentsActive;
   }
-
-  const paymentsActive = salesConfig.paymentLinksEnabled && mpConnected;
 
   const generatePaymentLink = paymentsActive
     ? createGeneratePaymentLinkTool({ threadId: chatId, salesConfig })
