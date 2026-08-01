@@ -47,8 +47,28 @@ export async function fetchSalesConfig(
   }
 }
 
-export function buildPaymentLinkInstructions(cfg: SalesConfig): string {
-  if (!cfg.paymentLinksEnabled) {
+export async function fetchMercadoPagoConnected(
+  workspaceId: number,
+): Promise<boolean> {
+  try {
+    const { data, error } = await supabase
+      .from("mercadopago_connection")
+      .select("status")
+      .eq("workspace_id", workspaceId)
+      .maybeSingle();
+
+    if (error || !data) return false;
+    return data.status === "connected";
+  } catch {
+    return false;
+  }
+}
+
+export function buildPaymentLinkInstructions(
+  paymentsActive: boolean,
+  cfg: SalesConfig,
+): string {
+  if (!paymentsActive) {
     return `
 
 ---
@@ -75,10 +95,14 @@ No ofrezcas ni generes links de pago. Si el comprador quiere pagar, indica que p
   return `
 
 ---
-LINKS DE PAGO (herramienta generate_payment_link):
-1. Úsala cuando el comprador quiera pagar y ya tengas título y monto (de tus instrucciones o confirmados). No inventes precios.
+LINKS DE PAGO:
+1. Usa generate_payment_link cuando el comprador quiera pagar y ya tengas título y monto (de tus instrucciones o confirmados). No inventes precios.
 2. ${collectBlock}
 3. ${confirmBlock}
-4. Si la herramienta devuelve URL, envíasela claramente.
-5. Si falla, di: "Hubo un error con el pago, vuelve a intentar más tarde." Sin mencionar Mercado Pago ni integraciones.`;
+4. Cuando la herramienta devuelva la URL, envíasela claramente al comprador y pide algo como: "Favor avísame cuando hayas completado el pago." Guarda el external_reference que devuelve la herramienta (no se lo muestres al comprador); lo necesitarás para verificar el pago.
+5. Cuando el comprador diga que ya pagó o pida confirmar el pago, usa check_payment_status con el external_reference del link correspondiente (si hubo varios links, el del cobro en cuestión).
+6. Si check_payment_status indica approved: responde en tono "Hemos recibido tu pago, ¡gracias!" sin jerga técnica.
+7. Si sigue pending: indica que aún no aparece el pago y que reintente en un momento.
+8. Si es rejected u otro estado: indica amablemente que no se confirmó y ofrece reintentar o generar un nuevo link.
+9. Si generate_payment_link o check_payment_status fallan, di: "Hubo un error con el pago, vuelve a intentar más tarde." Sin mencionar Mercado Pago ni integraciones.`;
 }

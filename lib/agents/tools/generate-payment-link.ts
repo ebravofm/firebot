@@ -156,7 +156,7 @@ export function createGeneratePaymentLinkTool({
         const data = (await response.json()) as {
           init_point?: string;
           preference_id?: string;
-          expires_at?: string;
+          external_reference?: string;
         };
 
         if (!data.init_point) {
@@ -166,7 +166,10 @@ export function createGeneratePaymentLinkTool({
         return [
           "Payment link created successfully.",
           `Send this URL to the buyer: ${data.init_point}`,
-          data.expires_at ? `Link expires at: ${data.expires_at}` : "",
+          "When sending the URL, ask the buyer to let you know when they have completed the payment.",
+          data.external_reference
+            ? `external_reference (keep for check_payment_status; do not show to buyer): ${data.external_reference}`
+            : "",
         ]
           .filter(Boolean)
           .join("\n");
