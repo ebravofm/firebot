@@ -1,6 +1,7 @@
 import { ENV_CONFIG } from "@/lib/env";
 
 export type SalesConfig = {
+  salesEnabled: boolean;
   paymentLinksEnabled: boolean;
   collectBuyerName: boolean;
   collectBuyerPhone: boolean;
@@ -12,6 +13,7 @@ export type SalesConfig = {
 
 /** Safe fallback when agent-context is unavailable: payments stay off. */
 export const INACTIVE_SALES_CONFIG: SalesConfig = {
+  salesEnabled: false,
   paymentLinksEnabled: false,
   collectBuyerName: true,
   collectBuyerPhone: true,
@@ -68,6 +70,7 @@ export async function fetchAgentSalesContext(
     };
 
     const salesConfig: SalesConfig = {
+      salesEnabled: data.salesConfig?.salesEnabled !== false,
       paymentLinksEnabled: data.salesConfig?.paymentLinksEnabled === true,
       collectBuyerName: data.salesConfig?.collectBuyerName !== false,
       collectBuyerPhone: data.salesConfig?.collectBuyerPhone !== false,
@@ -82,7 +85,9 @@ export async function fetchAgentSalesContext(
     const paymentsActive =
       typeof data.paymentsActive === "boolean"
         ? data.paymentsActive
-        : salesConfig.paymentLinksEnabled && mpConnected;
+        : salesConfig.salesEnabled &&
+          salesConfig.paymentLinksEnabled &&
+          mpConnected;
 
     return { salesConfig, mpConnected, paymentsActive };
   } catch (error) {

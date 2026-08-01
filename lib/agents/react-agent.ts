@@ -90,12 +90,15 @@ async function prepareAgentRun({
     ? createCheckPaymentStatusTool({ threadId: chatId })
     : null;
 
+  const salesEnabled = salesConfig.salesEnabled === true;
+
   let collectionsText = "";
   if (chatbotConfig?.workspace_id) {
     const allCollections = await getCollectionsByWorkspace(
       chatbotConfig.workspace_id,
     );
-    const collections = salesConfig.freeMode
+    const hideProducts = !salesEnabled || salesConfig.freeMode;
+    const collections = hideProducts
       ? allCollections.filter(
           (col) =>
             col.name.trim().toLowerCase() !==
@@ -125,11 +128,12 @@ async function prepareAgentRun({
     chatbotConfig?.conversation_tone,
     chatbotConfig?.conversation_tone_custom,
   );
-  const catalogInstructions = buildCatalogInstructions(salesConfig.freeMode);
-  const paymentLinkInstructions = buildPaymentLinkInstructions(
-    paymentsActive,
-    salesConfig,
-  );
+  const catalogInstructions = salesEnabled
+    ? buildCatalogInstructions(salesConfig.freeMode)
+    : "";
+  const paymentLinkInstructions = salesEnabled
+    ? buildPaymentLinkInstructions(paymentsActive, salesConfig)
+    : "";
 
   const scopeGuardrail = `
 
