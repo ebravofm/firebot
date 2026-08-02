@@ -88,7 +88,11 @@ async function prepareAgentRun({
     ? createGeneratePaymentLinkTool({ threadId: chatId, salesConfig })
     : null;
   const checkPaymentStatus = paymentsActive
-    ? createCheckPaymentStatusTool({ threadId: chatId })
+    ? createCheckPaymentStatusTool({
+        threadId: chatId,
+        contactPhone: chatbotConfig?.contact_phone,
+        contactEmail: chatbotConfig?.contact_email,
+      })
     : null;
 
   const salesEnabled = salesConfig.salesEnabled === true;

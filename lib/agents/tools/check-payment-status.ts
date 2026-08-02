@@ -1,30 +1,46 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { ENV_CONFIG } from "@/lib/env";
+import { formatContactLines } from "@/lib/contact-instructions";
 
 const GENERIC_PAYMENT_ERROR =
   "Hubo un error con el pago, vuelve a intentar más tarde.";
 
 export function createCheckPaymentStatusTool({
   threadId,
+  contactPhone,
+  contactEmail,
 }: {
   threadId?: string;
+  contactPhone?: string | null;
+  contactEmail?: string | null;
 } = {}) {
+  const contactLines = formatContactLines(contactPhone, contactEmail);
+  const unresolvedGuidance =
+    contactLines.length > 0
+      ? [
+          "Tell the buyer the payment was not confirmed.",
+          "Share this business contact so they can resolve it (do not offer a new payment link):",
+          ...contactLines,
+        ].join("\n")
+      : "Tell the buyer the payment was not confirmed. Do not offer to generate a new payment link.";
+
   return tool({
     description:
       "Check whether a previously generated payment link was paid. " +
       "Use when the buyer says they completed the payment or asks to confirm it. " +
-      "Pass the external_reference returned by generate_payment_link for that link. " +
-      "Do not invent an external_reference.",
+      "Pass the preference_id from the payment URL (pref_id=...) when known; " +
+      "otherwise omit it and the latest link for this conversation will be checked.",
     inputSchema: z.object({
-      external_reference: z
+      preference_id: z
         .string()
         .min(1)
+        .optional()
         .describe(
-          "external_reference of the payment link to verify (from generate_payment_link)",
+          "preference_id from the payment URL (pref_id query param). Optional — omit to check the latest link in this conversation.",
         ),
     }),
-    execute: async ({ external_reference }) => {
+    execute: async ({ preference_id }) => {
       if (!threadId) {
         return GENERIC_PAYMENT_ERROR;
       }
@@ -34,15 +50,15 @@ export function createCheckPaymentStatusTool({
       }
 
       try {
+        const body: Record<string, string> = { thread_id: threadId };
+        if (preference_id) body.preference_id = preference_id;
+
         const response = await fetch(
           `${ENV_CONFIG.BACKEND_URL}/integrations/mercadopago/payment-links/thread/status`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              thread_id: threadId,
-              external_reference,
-            }),
+            body: JSON.stringify(body),
           },
         );
 
@@ -59,7 +75,7 @@ export function createCheckPaymentStatusTool({
           title?: string;
           amount?: number;
           currency_id?: string;
-          external_reference?: string;
+          preference_id?: string;
         };
 
         const status = data.status || "not_found";
@@ -67,7 +83,7 @@ export function createCheckPaymentStatusTool({
         if (status === "not_found") {
           return [
             "Payment link not found for this conversation.",
-            "Tell the buyer you could not find a payment to verify and offer to generate a new link if needed.",
+            unresolvedGuidance,
           ].join("\n");
         }
 
@@ -77,14 +93,12 @@ export function createCheckPaymentStatusTool({
           data.amount != null
             ? `Amount: ${data.amount} ${data.currency_id || "CLP"}`
             : "",
-          data.external_reference
-            ? `external_reference: ${data.external_reference}`
-            : "",
+          data.preference_id ? `preference_id: ${data.preference_id}` : "",
           status === "approved"
             ? 'Tell the buyer something like: "Hemos recibido tu pago, ¡gracias!"'
             : status === "pending"
               ? "Tell the buyer the payment does not appear yet and to try again in a moment."
-              : "Tell the buyer the payment was not confirmed and offer to retry or generate a new link.",
+              : unresolvedGuidance,
         ]
           .filter(Boolean)
           .join("\n");
