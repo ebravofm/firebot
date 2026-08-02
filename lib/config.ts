@@ -41,6 +41,8 @@ export type ChatbotConfig = {
   system_prompt: string;
   conversation_tone?: string | null;
   conversation_tone_custom?: string | null;
+  contact_phone?: string | null;
+  contact_email?: string | null;
   welcome_message: string;
   initial_message: string;
   welcome_suggestions: Array<{
@@ -219,7 +221,7 @@ export async function getChatbotConfigFromThread(threadId: string): Promise<Chat
 
     const { data: config, error: configError } = await supabase
       .from("chatbot_config")
-      .select("id, workspace_id, description, primary_language_id, created_at, updated_at, system_prompt, conversation_tone, conversation_tone_custom, welcome_message, initial_message, welcome_suggestions, rag_collections, show_sidebar, show_header, show_attach_file, show_edit_button, show_assistant_action_bar, composer_placeholder, enable_tool_fallback, show_rag_results, assistant_icon_url, openai_model, widget_token")
+      .select("id, workspace_id, description, primary_language_id, created_at, updated_at, system_prompt, conversation_tone, conversation_tone_custom, contact_phone, contact_email, welcome_message, initial_message, welcome_suggestions, rag_collections, show_sidebar, show_header, show_attach_file, show_edit_button, show_assistant_action_bar, composer_placeholder, enable_tool_fallback, show_rag_results, assistant_icon_url, openai_model, widget_token")
       .eq("id", thread.chatbot_id)
       .single();
 
@@ -253,6 +255,8 @@ export async function getChatbotConfigFromThread(threadId: string): Promise<Chat
       system_prompt: config.system_prompt ?? "",
       conversation_tone: config.conversation_tone ?? "neutral",
       conversation_tone_custom: config.conversation_tone_custom ?? null,
+      contact_phone: config.contact_phone ?? null,
+      contact_email: config.contact_email ?? null,
       welcome_message: config.welcome_message ?? "",
       initial_message: config.initial_message ?? "",
       welcome_suggestions: Array.isArray(config.welcome_suggestions) ? config.welcome_suggestions : [],

@@ -23,6 +23,7 @@ import {
   INACTIVE_SALES_CONFIG,
   type SalesConfig,
 } from "@/lib/sales-config";
+import { buildContactInstructions } from "@/lib/contact-instructions";
 import { buildToneInstructions } from "@/lib/tone-instructions";
 
 const PRODUCTS_COLLECTION_NAME = "Productos";
@@ -128,11 +129,20 @@ async function prepareAgentRun({
     chatbotConfig?.conversation_tone,
     chatbotConfig?.conversation_tone_custom,
   );
+  const contactInstructions = buildContactInstructions(
+    chatbotConfig?.contact_phone,
+    chatbotConfig?.contact_email,
+  );
   const catalogInstructions = salesEnabled
     ? buildCatalogInstructions(salesConfig.freeMode)
     : "";
   const paymentLinkInstructions = salesEnabled
-    ? buildPaymentLinkInstructions(paymentsActive, salesConfig)
+    ? buildPaymentLinkInstructions(
+        paymentsActive,
+        salesConfig,
+        chatbotConfig?.contact_phone,
+        chatbotConfig?.contact_email,
+      )
     : "";
 
   const scopeGuardrail = `
@@ -149,6 +159,7 @@ RESTRICCIONES DE COMPORTAMIENTO (NO NEGOCIABLES):
     baseSystemPrompt +
     collectionsText +
     toneInstructions +
+    contactInstructions +
     catalogInstructions +
     paymentLinkInstructions +
     scopeGuardrail;

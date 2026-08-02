@@ -1,3 +1,4 @@
+import { formatContactLines } from "@/lib/contact-instructions";
 import { ENV_CONFIG } from "@/lib/env";
 
 export type SalesConfig = {
@@ -9,6 +10,7 @@ export type SalesConfig = {
   collectShippingAddress: boolean;
   confirmBeforeLink: boolean;
   freeMode: boolean;
+  shareContactOnPayment: boolean;
 };
 
 /** Safe fallback when agent-context is unavailable: payments stay off. */
@@ -21,6 +23,7 @@ export const INACTIVE_SALES_CONFIG: SalesConfig = {
   collectShippingAddress: true,
   confirmBeforeLink: true,
   freeMode: false,
+  shareContactOnPayment: false,
 };
 
 export type AgentSalesContext = {
@@ -79,6 +82,7 @@ export async function fetchAgentSalesContext(
         data.salesConfig?.collectShippingAddress !== false,
       confirmBeforeLink: data.salesConfig?.confirmBeforeLink !== false,
       freeMode: data.salesConfig?.freeMode === true,
+      shareContactOnPayment: data.salesConfig?.shareContactOnPayment === true,
     };
 
     const mpConnected = data.mpConnected === true;
@@ -120,6 +124,8 @@ Cuando el comprador pregunte por productos, precios o disponibilidad, usa rag_se
 export function buildPaymentLinkInstructions(
   paymentsActive: boolean,
   cfg: SalesConfig,
+  contactPhone?: string | null,
+  contactEmail?: string | null,
 ): string {
   if (!paymentsActive) {
     return `
@@ -145,6 +151,15 @@ No ofrezcas ni generes links de pago. Si el comprador quiere pagar, indica que p
     ? `Antes de llamar la herramienta, resume título, monto y los datos recolectados y espera confirmación explícita del comprador.`
     : `Cuando tengas título, monto y los datos requeridos, genera el link.`;
 
+  const contactLines =
+    cfg.shareContactOnPayment
+      ? formatContactLines(contactPhone, contactEmail)
+      : [];
+  const approvedContactBlock =
+    contactLines.length > 0
+      ? ` Luego incluye estos datos de contacto del negocio (solo en ese mensaje de confirmación, no en cada mensaje):\n${contactLines.join("\n")}`
+      : "";
+
   return `
 
 ---
@@ -154,7 +169,7 @@ LINKS DE PAGO:
 3. ${confirmBlock}
 4. Cuando la herramienta devuelva la URL, envíasela claramente al comprador y pide algo como: "Favor avísame cuando hayas completado el pago." Guarda el external_reference que devuelve la herramienta (no se lo muestres al comprador); lo necesitarás para verificar el pago.
 5. Cuando el comprador diga que ya pagó o pida confirmar el pago, usa check_payment_status con el external_reference del link correspondiente (si hubo varios links, el del cobro en cuestión).
-6. Si check_payment_status indica approved: responde en tono "Hemos recibido tu pago, ¡gracias!" sin jerga técnica.
+6. Si check_payment_status indica approved: responde en tono "Hemos recibido tu pago, ¡gracias!" sin jerga técnica.${approvedContactBlock}
 7. Si sigue pending: indica que aún no aparece el pago y que reintente en un momento.
 8. Si es rejected u otro estado: indica amablemente que no se confirmó y ofrece reintentar o generar un nuevo link.
 9. Si generate_payment_link o check_payment_status fallan, di: "Hubo un error con el pago, vuelve a intentar más tarde." Sin mencionar Mercado Pago ni integraciones.`;
