@@ -374,6 +374,7 @@ export interface RagCollection {
   id: number;
   name: string;
   description?: string;
+  kind: "user" | "products";
 }
 
 /**
@@ -383,7 +384,7 @@ export async function getCollectionsByWorkspace(workspaceId: number): Promise<Ra
   try {
     const { data, error } = await supabase
       .from("rag_collections")
-      .select("id, name, description")
+      .select("id, name, description, kind")
       .eq("workspace_id", workspaceId)
       .order("name");
 
@@ -396,6 +397,7 @@ export async function getCollectionsByWorkspace(workspaceId: number): Promise<Ra
       id: col.id,
       name: col.name ?? "",
       description: col.description ?? undefined,
+      kind: col.kind === "products" ? "products" : "user",
     }));
   } catch (error) {
     console.error("Error en getCollectionsByWorkspace:", error instanceof Error ? error.message : "unknown");

@@ -118,7 +118,7 @@ Cuando el comprador quiera comprar o pagar:
 
 ---
 PRODUCTOS:
-Cuando el comprador pregunte por productos, precios o disponibilidad, usa rag_search sobre la colección Productos (si está listada) para obtener la información. No inventes precios ni disponibilidad.`;
+Cuando el comprador pregunte por productos, precios o disponibilidad, usa rag_search sobre la colección de catálogo (kind=products, si está listada) para obtener la información. No inventes precios ni disponibilidad.`;
 }
 
 export function buildPaymentLinkInstructions(
