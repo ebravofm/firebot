@@ -14,6 +14,7 @@ import {
   getChatbotConfigFromThread,
   getCollectionsByWorkspace,
   type ChatbotConfig,
+  type ThreadChannel,
 } from "@/lib/config";
 import { ENV_CONFIG } from "@/lib/env";
 import {
@@ -24,6 +25,7 @@ import {
   type SalesConfig,
 } from "@/lib/sales-config";
 import { buildContactInstructions } from "@/lib/contact-instructions";
+import { buildFormattingInstructions } from "@/lib/formatting-instructions";
 import { buildToneInstructions } from "@/lib/tone-instructions";
 
 const PRODUCTS_COLLECTION_NAME = "Productos";
@@ -72,9 +74,15 @@ async function prepareAgentRun({
 }: ReactAgentParams & { telemetryFunctionId: string }): Promise<PreparedAgentRun> {
   const ragSearch = createRagSearchTool({ threadId: chatId });
 
-  const chatbotConfig = chatId
-    ? await getChatbotConfigFromThread(chatId)
-    : await getChatbotConfig(jwtToken);
+  let chatbotConfig: ChatbotConfig | null = null;
+  let channel: ThreadChannel = "widget";
+  if (chatId) {
+    const fromThread = await getChatbotConfigFromThread(chatId);
+    chatbotConfig = fromThread.config;
+    channel = fromThread.channel;
+  } else {
+    chatbotConfig = await getChatbotConfig(jwtToken);
+  }
 
   let salesConfig: SalesConfig = INACTIVE_SALES_CONFIG;
   let paymentsActive = false;
@@ -148,6 +156,7 @@ async function prepareAgentRun({
         chatbotConfig?.contact_email,
       )
     : "";
+  const formattingInstructions = buildFormattingInstructions(channel);
 
   const scopeGuardrail = `
 
@@ -166,6 +175,7 @@ RESTRICCIONES DE COMPORTAMIENTO (NO NEGOCIABLES):
     contactInstructions +
     catalogInstructions +
     paymentLinkInstructions +
+    formattingInstructions +
     scopeGuardrail;
   const modelId = chatbotConfig?.openai_model ?? ENV_CONFIG.OPENAI_MODEL ?? "gpt-4o-mini";
   const modelMessages = await convertToModelMessages(messagesForModelConversion(messages));

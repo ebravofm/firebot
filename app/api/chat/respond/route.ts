@@ -39,7 +39,7 @@ export async function POST(req: Request) {
 
   const { data: thread, error: threadError } = await supabase
     .from("threads")
-    .select("id, taken_by_user_system, workspace_id, chatbot_id, channel")
+    .select("id, taken_by_user_system, workspace_id, chatbot_id")
     .eq("id", chatId)
     .single();
 

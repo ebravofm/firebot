@@ -196,27 +196,45 @@ const CACHE_TTL = 1000 * 60 * 5; // 5 minutos
 // FUNCIONES DE CONFIGURACIÓN DEL CHATBOT
 // ============================================================================
 
+export type ThreadChannel = "widget" | "whatsapp";
+
+export type ChatbotConfigFromThread = {
+  config: ChatbotConfig | null;
+  channel: ThreadChannel;
+};
+
+function normalizeThreadChannel(value: unknown): ThreadChannel {
+  return value === "whatsapp" ? "whatsapp" : "widget";
+}
+
 /**
  * Obtiene la configuración del chatbot desde Supabase usando el threadId.
  * Usa thread.chatbot_id para consultar chatbot_config directamente.
  * Esta ruta evita la dependencia del JWT y del backend HTTP en el servidor.
+ * También devuelve threads.channel para instrucciones de formato por canal.
  */
-export async function getChatbotConfigFromThread(threadId: string): Promise<ChatbotConfig | null> {
+export async function getChatbotConfigFromThread(
+  threadId: string,
+): Promise<ChatbotConfigFromThread> {
+  const empty: ChatbotConfigFromThread = { config: null, channel: "widget" };
+
   try {
     const { data: thread, error: threadError } = await supabase
       .from("threads")
-      .select("workspace_id, chatbot_id")
+      .select("workspace_id, chatbot_id, channel")
       .eq("id", threadId)
       .single();
 
     if (threadError || !thread) {
       console.error("getChatbotConfigFromThread: error obteniendo thread:", threadError);
-      return null;
+      return empty;
     }
+
+    const channel = normalizeThreadChannel(thread.channel);
 
     if (!thread.chatbot_id) {
       console.error("getChatbotConfigFromThread: thread sin chatbot_id");
-      return null;
+      return { config: null, channel };
     }
 
     const { data: config, error: configError } = await supabase
@@ -227,7 +245,7 @@ export async function getChatbotConfigFromThread(threadId: string): Promise<Chat
 
     if (configError || !config) {
       console.error("getChatbotConfigFromThread: error obteniendo chatbot_config:", configError);
-      return null;
+      return { config: null, channel };
     }
 
     // Fetch widget_appearance and widget_messages by workspace_id
@@ -276,10 +294,10 @@ export async function getChatbotConfigFromThread(threadId: string): Promise<Chat
     };
 
     console.log("getChatbotConfigFromThread: configuración obtenida desde Supabase");
-    return result;
+    return { config: result, channel };
   } catch (error) {
     console.error("getChatbotConfigFromThread: error:", error instanceof Error ? error.message : "unknown");
-    return null;
+    return empty;
   }
 }
 
