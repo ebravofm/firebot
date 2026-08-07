@@ -300,7 +300,12 @@ const AssistantMessage: FC = () => {
           <div className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
             {config?.name?.trim() || config?.welcome_message?.split('\n')[0]?.trim() || ui.header_title}
           </div>
-          <div className="bg-muted text-foreground rounded-2xl px-4 py-2.5 leading-7 break-words">
+          <div
+            className={cn(
+              "bg-muted text-foreground rounded-2xl px-4 py-2.5 leading-7 break-words",
+              isInProgress && !hasContent && "w-fit",
+            )}
+          >
             {isInProgress && !hasContent ? (
               ui.loading_message_enable ? (
                 <div className="flex items-center gap-2 text-muted-foreground text-sm">
