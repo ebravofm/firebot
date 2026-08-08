@@ -196,7 +196,7 @@ const CACHE_TTL = 1000 * 60 * 5; // 5 minutos
 // FUNCIONES DE CONFIGURACIÓN DEL CHATBOT
 // ============================================================================
 
-export type ThreadChannel = "widget" | "whatsapp";
+export type ThreadChannel = "widget" | "whatsapp" | "instagram";
 
 export type ChatbotConfigFromThread = {
   config: ChatbotConfig | null;
@@ -204,7 +204,9 @@ export type ChatbotConfigFromThread = {
 };
 
 function normalizeThreadChannel(value: unknown): ThreadChannel {
-  return value === "whatsapp" ? "whatsapp" : "widget";
+  if (value === "whatsapp") return "whatsapp";
+  if (value === "instagram") return "instagram";
+  return "widget";
 }
 
 /**
