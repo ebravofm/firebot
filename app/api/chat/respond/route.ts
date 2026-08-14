@@ -3,7 +3,7 @@ import { generateReactAgent } from "@/lib/agents/react-agent";
 import { startRespondWatchdog } from "@/lib/agents/respond-watchdog";
 import { loadChat } from "@/lib/chat-store";
 import { assertInternalToken } from "@/lib/internal-auth";
-import { supabase } from "@/lib/supabase-client";
+import { supabaseServer as supabase } from "@/lib/supabase-server";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;

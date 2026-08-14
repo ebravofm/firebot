@@ -7,7 +7,6 @@ import { Assistant } from "@/app/assistant";
 import { storage } from "@/lib/storage";
 import { getChatbotConfig, ChatbotConfig } from "@/lib/config";
 import { ChatbotConfigProvider } from "@/lib/chatbot-config-context";
-import { loadChat } from "@/lib/chat-store";
 import { redirect, useParams } from "next/navigation";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 
@@ -92,8 +91,17 @@ export default function Page() {
       // Solo guardar el threadId si es válido
       if (id) {
         storage.setThreadId(id);
-        const loadedMessages = await loadChat(id);
-        setMessages(loadedMessages);
+        // El historial se pide al servidor (/api/chat/[id]/messages), que lee con
+        // service_role. El navegador ya no consulta la BD directo.
+        try {
+          const res = await fetch(`/api/chat/${encodeURIComponent(id)}/messages`, { cache: "no-store" });
+          if (res.ok) {
+            const { messages: loadedMessages } = (await res.json()) as { messages: UIMessage[] };
+            setMessages(loadedMessages);
+          }
+        } catch (err) {
+          console.warn("No se pudo cargar el historial:", err);
+        }
       }
 
       setIsLoading(false);

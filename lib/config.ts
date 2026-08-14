@@ -1,6 +1,5 @@
 import { storage } from './storage';
 import { ENV_CONFIG } from './env';
-import { supabase } from './supabase-client';
 
 // ============================================================================
 // TIPOS
@@ -106,14 +105,15 @@ export function resolveUIConfig(config: ChatbotConfig | null) {
 
 export async function fetchWidgetBehavior(workspaceId: number): Promise<{ show_reset_button: boolean }> {
   try {
-    const { data } = await supabase
-      .from('widget_behavior')
-      .select('show_reset_button')
-      .eq('workspace_id', workspaceId)
-      .maybeSingle();
-    return {
-      show_reset_button: data?.show_reset_button !== false,
-    };
+    // Se corre en el navegador. Antes leía widget_behavior directo con la clave anon;
+    // ahora pide a una ruta de firebot que lee del lado servidor (service_role). El dato
+    // es solo un booleano de UI, sin sensibilidad cross-tenant.
+    const res = await fetch(`/api/widget-behavior?workspaceId=${encodeURIComponent(workspaceId)}`, {
+      cache: 'no-store',
+    });
+    if (!res.ok) return { show_reset_button: true };
+    const data = (await res.json()) as { show_reset_button?: boolean };
+    return { show_reset_button: data?.show_reset_button !== false };
   } catch {
     return { show_reset_button: true };
   }
@@ -188,9 +188,12 @@ function getChatbotIdFromJWT(jwtToken: string): string | null {
 // ============================================================================
 // SISTEMA DE CACHÉ
 // ============================================================================
-let configCache: ChatbotConfig | null = null;
-let lastFetchTime = 0;
+// Caché por chatbot_id. ANTES era un único singleton sin clave: como getChatbotConfig
+// corre en el servidor (compartido entre TODOS los tenants), dos widgets distintos que
+// pegaran dentro de la misma ventana de 5 min se llevaban la config del otro —
+// filtración cross-tenant. La clave por chatbot_id lo evita.
 const CACHE_TTL = 1000 * 60 * 5; // 5 minutos
+const configCacheByChatbot = new Map<string, { config: ChatbotConfig; at: number }>();
 
 // ============================================================================
 // FUNCIONES DE CONFIGURACIÓN DEL CHATBOT
@@ -203,145 +206,68 @@ export type ChatbotConfigFromThread = {
   channel: ThreadChannel;
 };
 
-function normalizeThreadChannel(value: unknown): ThreadChannel {
+export function normalizeThreadChannel(value: unknown): ThreadChannel {
   if (value === "whatsapp") return "whatsapp";
   if (value === "instagram") return "instagram";
   return "widget";
 }
 
-/**
- * Obtiene la configuración del chatbot desde Supabase usando el threadId.
- * Usa thread.chatbot_id para consultar chatbot_config directamente.
- * Esta ruta evita la dependencia del JWT y del backend HTTP en el servidor.
- * También devuelve threads.channel para instrucciones de formato por canal.
- */
-export async function getChatbotConfigFromThread(
-  threadId: string,
-): Promise<ChatbotConfigFromThread> {
-  const empty: ChatbotConfigFromThread = { config: null, channel: "widget" };
-
-  try {
-    const { data: thread, error: threadError } = await supabase
-      .from("threads")
-      .select("workspace_id, chatbot_id, channel")
-      .eq("id", threadId)
-      .single();
-
-    if (threadError || !thread) {
-      console.error("getChatbotConfigFromThread: error obteniendo thread:", threadError);
-      return empty;
-    }
-
-    const channel = normalizeThreadChannel(thread.channel);
-
-    if (!thread.chatbot_id) {
-      console.error("getChatbotConfigFromThread: thread sin chatbot_id");
-      return { config: null, channel };
-    }
-
-    const { data: config, error: configError } = await supabase
-      .from("chatbot_config")
-      .select("id, workspace_id, description, primary_language_id, created_at, updated_at, system_prompt, conversation_tone, conversation_tone_custom, contact_phone, contact_email, welcome_message, initial_message, welcome_suggestions, rag_collections, show_sidebar, show_header, show_attach_file, show_edit_button, show_assistant_action_bar, composer_placeholder, enable_tool_fallback, show_rag_results, assistant_icon_url, openai_model, widget_token")
-      .eq("id", thread.chatbot_id)
-      .single();
-
-    if (configError || !config) {
-      console.error("getChatbotConfigFromThread: error obteniendo chatbot_config:", configError);
-      return { config: null, channel };
-    }
-
-    // Fetch widget_appearance and widget_messages by workspace_id
-    const [{ data: wa }, { data: wm }] = await Promise.all([
-      supabase
-        .from("widget_appearance")
-        .select("primary_color, secondary_color, text_color, border_radius, position, widget_size, icon_url, animate_bubble_chatbot, enable_font_zoom, enable_high_contrast_toggle, custom_icon_preserve_original")
-        .eq("workspace_id", thread.workspace_id)
-        .maybeSingle(),
-      supabase
-        .from("widget_messages")
-        .select("header_title, header_subtitle, chat_placeholder, offline_message, banner_text, banner_text_enable, loading_message, error_message")
-        .eq("workspace_id", thread.workspace_id)
-        .maybeSingle(),
-    ]);
-
-    const result: ChatbotConfig = {
-      id: config.id,
-      workspace_id: config.workspace_id,
-      name: "",
-      description: config.description ?? "",
-      primary_language_id: config.primary_language_id,
-      created_at: config.created_at ?? "",
-      updated_at: config.updated_at ?? "",
-      system_prompt: config.system_prompt ?? "",
-      conversation_tone: config.conversation_tone ?? "neutral",
-      conversation_tone_custom: config.conversation_tone_custom ?? null,
-      contact_phone: config.contact_phone ?? null,
-      contact_email: config.contact_email ?? null,
-      welcome_message: config.welcome_message ?? "",
-      initial_message: config.initial_message ?? "",
-      welcome_suggestions: Array.isArray(config.welcome_suggestions) ? config.welcome_suggestions : [],
-      rag_collections: config.rag_collections ?? [],
-      show_sidebar: config.show_sidebar ?? undefined,
-      show_header: config.show_header ?? undefined,
-      show_attach_file: config.show_attach_file ?? undefined,
-      show_edit_button: config.show_edit_button ?? undefined,
-      show_assistant_action_bar: config.show_assistant_action_bar ?? undefined,
-      composer_placeholder: config.composer_placeholder ?? undefined,
-      enable_tool_fallback: config.enable_tool_fallback ?? undefined,
-      show_rag_results: config.show_rag_results ?? undefined,
-      assistant_icon_url: config.assistant_icon_url ?? undefined,
-      openai_model: config.openai_model ?? undefined,
-      widget_appearance: wa ?? null,
-      widget_messages: wm ?? null,
-    };
-
-    console.log("getChatbotConfigFromThread: configuración obtenida desde Supabase");
-    return { config: result, channel };
-  } catch (error) {
-    console.error("getChatbotConfigFromThread: error:", error instanceof Error ? error.message : "unknown");
-    return empty;
-  }
-}
+// getChatbotConfigFromThread se movió a lib/config-server.ts (usa el cliente service_role,
+// server-only). Este módulo debe quedar importable desde el navegador.
 
 export async function getChatbotConfig(jwtToken?: string | null): Promise<ChatbotConfig | null> {
   try {
-    // Verificar caché
-    const now = Date.now();
-    if (configCache && now - lastFetchTime < CACHE_TTL) {
-      console.log('getChatbotConfig: usando caché');
-      return configCache;
-    }
-
     // El token debe ser provisto explícitamente o se obtiene de localStorage en el cliente.
     // Si jwtToken es null/undefined, la llamada a storage.getJWT() solo funcionará
     // en un entorno de cliente.
     const token = jwtToken ?? (typeof window !== 'undefined' ? storage.getJWT() : null);
-    
+
     if (!token) {
       console.error('❌ getChatbotConfig: No JWT token found');
       return null;
     }
 
     const chatbotId = getChatbotIdFromJWT(token);
-    
+
     if (!chatbotId) {
       console.error('❌ getChatbotConfig: No se pudo extraer chatbot_id del JWT - token inválido');
       return null;
     }
 
+    // Caché por chatbot: nunca se sirve la config de un tenant a otro.
+    const cacheKey = String(chatbotId);
+    const now = Date.now();
+    const cached = configCacheByChatbot.get(cacheKey);
+    if (cached && now - cached.at < CACHE_TTL) {
+      console.log('getChatbotConfig: usando caché para chatbot', cacheKey);
+      return cached.config;
+    }
+
     const url = `${ENV_CONFIG.BACKEND_URL}/chatbot-config/${chatbotId}`;
     console.log('getChatbotConfig: llamando a:', url);
-    
+
+    // Origen de incrustación para el gate de dominio del backend (P2), obligatorio en
+    // tokens widget. En el navegador es window.location.origin (el iframe de firebot). En
+    // el servidor (p. ej. /api/chat/create) no hay window: se usa el propio origen de
+    // firebot, que es un origen de plataforma siempre permitido. Sin esto el backend
+    // rechaza el token widget y la creación de chat falla.
+    const embeddingOrigin =
+      typeof window !== 'undefined' && window.location?.origin
+        ? window.location.origin
+        : (() => {
+            try {
+              return new URL(ENV_CONFIG.WIDGET_URL).origin;
+            } catch {
+              return '';
+            }
+          })();
+
     const response = await fetch(url, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${token}`,
-        // Usar window.location.origin para indicar desde qué dominio se carga el widget.
-        // document.referrer indica la página anterior, no el sitio actual donde está incrustado.
-        ...(typeof window !== 'undefined' && window.location?.origin
-          ? { "X-Embedding-Origin": window.location.origin }
-          : {}),
+        ...(embeddingOrigin ? { "X-Embedding-Origin": embeddingOrigin } : {}),
       },
     });
 
@@ -351,10 +277,9 @@ export async function getChatbotConfig(jwtToken?: string | null): Promise<Chatbo
     }
 
     const data: ChatbotConfig = await response.json();
-    
-    configCache = data;
-    lastFetchTime = now;
-    
+
+    configCacheByChatbot.set(cacheKey, { config: data, at: now });
+
     console.log('getChatbotConfig: configuración obtenida exitosamente');
     return data;
   } catch (error) {
@@ -364,8 +289,7 @@ export async function getChatbotConfig(jwtToken?: string | null): Promise<Chatbo
 }
 
 export function clearChatbotConfigCache(): void {
-  configCache = null;
-  lastFetchTime = 0;
+  configCacheByChatbot.clear();
 }
 
 // ============================================================================
@@ -379,30 +303,4 @@ export interface RagCollection {
   kind: "user" | "products";
 }
 
-/**
- * Obtiene las colecciones RAG disponibles para un workspace desde Supabase
- */
-export async function getCollectionsByWorkspace(workspaceId: number): Promise<RagCollection[]> {
-  try {
-    const { data, error } = await supabase
-      .from("rag_collections")
-      .select("id, name, description, kind")
-      .eq("workspace_id", workspaceId)
-      .order("name");
-
-    if (error) {
-      console.error("Error obteniendo colecciones:", error);
-      return [];
-    }
-
-    return (data || []).map((col) => ({
-      id: col.id,
-      name: col.name ?? "",
-      description: col.description ?? undefined,
-      kind: col.kind === "products" ? "products" : "user",
-    }));
-  } catch (error) {
-    console.error("Error en getCollectionsByWorkspace:", error instanceof Error ? error.message : "unknown");
-    return [];
-  }
-}
+// getCollectionsByWorkspace se movió a lib/config-server.ts (usa el cliente service_role).

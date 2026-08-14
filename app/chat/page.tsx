@@ -2,7 +2,6 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { createChat } from "@/lib/chat-store";
 import { storage } from "@/lib/storage";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 
@@ -18,20 +17,30 @@ export default function CreateChatPage() {
         router.replace("/error-access");
         return;
       }
-      
-      try {
-        const id = await createChat();
-        router.replace(`/chat/${id}`);
-      } catch (error) {
-        console.error("Failed to create chat:", error);
 
-        // Límite de conversaciones del plan Free alcanzado
-        if (error instanceof Error && error.message.startsWith("CONVERSATION_LIMIT_REACHED")) {
-          const [, used, limit] = error.message.split(":");
-          router.replace(`/error-limit?used=${used}&limit=${limit}`);
+      try {
+        // La creación del hilo ocurre en el servidor (/api/chat/create), que inserta
+        // con service_role. El navegador ya no toca la BD directo.
+        const res = await fetch("/api/chat/create", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${jwt}` },
+        });
+
+        if (res.status === 429) {
+          const body = await res.json().catch(() => ({}));
+          router.replace(`/error-limit?used=${body.used ?? ""}&limit=${body.limit ?? ""}`);
           return;
         }
+        if (!res.ok) {
+          throw new Error(`create failed: ${res.status}`);
+        }
 
+        const { chatId } = (await res.json()) as { chatId: string };
+        // El thread_id se persiste ahora en el cliente (antes lo hacía createChat).
+        storage.setThreadId(chatId);
+        router.replace(`/chat/${chatId}`);
+      } catch (error) {
+        console.error("Failed to create chat:", error);
         router.replace("/error-access");
       }
     }

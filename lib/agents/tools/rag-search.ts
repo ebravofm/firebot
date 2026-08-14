@@ -1,7 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { searchRAG } from "@/lib/api/rag";
-import { getCollectionsByWorkspace } from "@/lib/config";
+import { getCollectionsByWorkspace } from "@/lib/config-server";
 
 export function createRagSearchTool({ 
   maxResults = 10,

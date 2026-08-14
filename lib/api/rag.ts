@@ -1,7 +1,7 @@
 import { ENV_CONFIG } from "@/lib/env";
 import { getChatbotConfig } from "@/lib/config";
 import { storage } from "@/lib/storage";
-import { supabase } from "@/lib/supabase-client";
+import { supabaseServer as supabase } from "@/lib/supabase-server";
 
 export interface RAGSearchResult {
   title: string;

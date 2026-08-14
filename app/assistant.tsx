@@ -18,7 +18,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { useChat } from '@ai-sdk/react'
-import type { UIMessage } from "ai";
+import { DefaultChatTransport, type UIMessage } from "ai";
 import { useAISDKRuntime } from "@assistant-ui/react-ai-sdk";
 import { useChatbotConfig } from "@/lib/chatbot-config-context";
 import { useEffect, useRef, useState } from "react";
@@ -27,7 +27,6 @@ import { DropdownMenuOptions } from "@/components/DropdownMenuOptions";
 import { InfoModal } from "@/components/InfoModal";
 import { ChatHeader } from "@/components/ChatHeader";
 import { X } from "lucide-react";
-import { supabase } from "@/lib/supabase-client";
 import { storage } from "@/lib/storage";
 import { RatingOverlay } from "@/components/RatingOverlay";
 
@@ -51,9 +50,18 @@ export const Assistant = ({
   // Obtener JWT una vez al montar el componente
   // const jwtToken = storage.getJWT();
   
-  const chat = useChat({ 
-    id: chatId, 
+  const chat = useChat({
+    id: chatId,
     messages: initialMessages,
+    // El token del widget viaja en cada petición a /api/chat, que ahora lo exige y verifica
+    // antes de invocar la IA. Sin esto el endpoint quedaba abierto a cualquiera.
+    transport: new DefaultChatTransport({
+      api: "/api/chat",
+      headers: (): Record<string, string> => {
+        const jwt = storage.getJWT();
+        return jwt ? { Authorization: `Bearer ${jwt}` } : {};
+      },
+    }),
   });
   const runtime = useAISDKRuntime(chat);
   const router = useRouter();
@@ -226,28 +234,20 @@ export const Assistant = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chat.id, openingMessage]);
 
-  // Suscripción en tiempo real a nuevos mensajes y cambios del thread
+  // Estado en vivo del hilo por polling al servidor de firebot.
+  //
+  // Antes esto era una suscripción realtime de Supabase con la clave anon en el navegador,
+  // que exponía toda la BD (fuga cross-tenant). El visitante es anónimo y ya no toca la BD:
+  // consulta /api/thread-status, que lee con service_role del lado servidor. El polling
+  // cubre lo mismo que el realtime: detectar el takeover humano (para pausar la IA) y pintar
+  // en vivo los mensajes que escribe el agente.
   useEffect(() => {
     if (!chatId) return;
 
     let isMounted = true;
-    let messagesChannel: ReturnType<typeof supabase.channel> | null = null;
-    let threadChannel: ReturnType<typeof supabase.channel> | null = null;
-
-    // Cargar estado inicial del thread
-    (async () => {
-      try {
-        const { data } = await supabase
-          .from('threads')
-          .select('id, taken_by_user_system')
-          .eq('id', chatId)
-          .single();
-        if (!isMounted) return;
-        setTakenByHuman(!!data?.taken_by_user_system);
-      } catch (e) {
-        console.warn('[Assistant] failed to fetch initial thread state', e);
-      }
-    })();
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    // Marca del último mensaje ya visto, para pedir solo lo nuevo.
+    let lastSeenAt: string | null = null;
 
     const isHumanProvider = (parts: unknown[]): boolean => {
       if (!Array.isArray(parts)) return false;
@@ -257,7 +257,6 @@ export const Assistant = ({
         return !!(pm && 'human' in pm);
       });
     };
-
 
     const hasTextPart = (parts: unknown[]): boolean => {
       if (!Array.isArray(parts)) return false;
@@ -275,76 +274,67 @@ export const Assistant = ({
         if ((trimmed.startsWith('[') && trimmed.endsWith(']')) || (trimmed.startsWith('{') && trimmed.endsWith('}'))) {
           try { const parsed = JSON.parse(trimmed); return Array.isArray(parsed) ? parsed : [parsed]; } catch { /* fallthrough */ }
         }
-        // string plano: crear part de texto
         return [{ type: 'text', text: raw }];
       }
       if (raw && typeof raw === 'object') return [raw as unknown];
       return [];
     };
 
-    // Primero, suscribir a cambios del thread (por si cambia el control humano)
-    threadChannel = supabase
-      .channel(`thread-${chatId}`)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'threads', filter: `id=eq.${chatId}` }, (payload) => {
-        if (!isMounted) return;
-        const newRow = payload.new as { taken_by_user_system?: number | null };
-        const taken = newRow?.taken_by_user_system != null;
-        setTakenByHuman(taken);
-        console.log('[Assistant] thread updated, taken_by_user_system:', taken);
-      })
-      .subscribe();
+    type ThreadStatus = {
+      taken_by_user_system: number | null;
+      messages: Array<{ id: string; role: string; parts: unknown; content?: string; created_at?: string }>;
+    };
 
-    // Luego, suscribir a inserts de mensajes del hilo
-    messagesChannel = supabase
-      .channel(`messages-thread-${chatId}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `thread_id=eq.${chatId}` }, (payload) => {
-        if (!isMounted) return;
-        const row = payload.new as { id: string; role: string; parts: unknown; content?: string };
-        const parts = coerceParts(row.parts ?? row.content);
+    const applyMessage = (row: { id: string; role: string; parts: unknown; content?: string }, humanActive: boolean) => {
+      const parts = coerceParts(row.parts ?? row.content);
+      // Mismo filtro que antes: con humano activo solo se pintan los mensajes marcados
+      // como humanos; con IA activa el propio stream ya trae los del asistente.
+      if (row.role === 'assistant' && humanActive && !isHumanProvider(parts)) return;
 
-        // Filtrar coherente con la lógica del cliente: mostrar user siempre; assistant según proveedor
-        if (row.role === 'assistant') {
-          if (takenByHuman) {
-            // Humano activo: solo mensajes con metadata humana
-            if (!isHumanProvider(parts)) return;
-          } else {
-            // IA activa: permitir cualquier assistant; si no hay parts válidos, crear desde content
-            // No filtramos por provider para no perder mensajes que lleguen solo con texto
-            if (!hasTextPart(parts)) {
-              // si no hay part de texto, intentar crear uno desde content ya hecho por coerceParts
+      const contentText = typeof row.content === 'string' ? row.content : '';
+      const finalParts = hasTextPart(parts) ? parts : [{ type: 'text', text: contentText }];
+      const incoming = {
+        id: row.id,
+        role: row.role as 'system' | 'user' | 'assistant',
+        parts: finalParts,
+      } as UIMessage;
+
+      chat.setMessages((prev) => {
+        if (prev.some((m) => m.id === incoming.id)) return prev;
+        return [...prev, incoming];
+      });
+    };
+
+    const poll = async () => {
+      try {
+        const url = `/api/thread-status?chatId=${encodeURIComponent(chatId)}${lastSeenAt ? `&after=${encodeURIComponent(lastSeenAt)}` : ''}`;
+        const res = await fetch(url, { cache: 'no-store' });
+        if (res.ok && isMounted) {
+          const data = (await res.json()) as ThreadStatus;
+          const humanActive = data.taken_by_user_system != null;
+          setTakenByHuman(humanActive);
+          for (const row of data.messages) {
+            if (row.created_at && (!lastSeenAt || row.created_at > lastSeenAt)) {
+              lastSeenAt = row.created_at;
             }
+            applyMessage(row, humanActive);
           }
         }
+      } catch (e) {
+        console.warn('[Assistant] poll thread-status falló', e);
+      } finally {
+        if (isMounted) timer = setTimeout(poll, 4000);
+      }
+    };
 
-        // Asegurar que siempre haya al menos un part de texto visible
-        const contentText = (() => {
-          const candidate = (payload.new as { content?: unknown })?.content;
-          return typeof candidate === 'string' ? candidate : '';
-        })();
-        const finalParts = hasTextPart(parts)
-          ? parts
-          : [{ type: 'text', text: contentText }];
-
-        const incoming = {
-          id: row.id,
-          role: (row.role as 'system' | 'user' | 'assistant'),
-          parts: finalParts,
-        } as UIMessage;
-
-        // Evitar duplicados por id
-        chat.setMessages((prev) => {
-          if (prev.some((m) => m.id === incoming.id)) return prev;
-          return [...prev, incoming];
-        });
-      })
-      .subscribe();
+    // La primera lectura fija el estado inicial de takeover; a partir de ahí pide solo lo nuevo.
+    poll();
 
     return () => {
       isMounted = false;
-      if (messagesChannel) supabase.removeChannel(messagesChannel);
-      if (threadChannel) supabase.removeChannel(threadChannel);
+      if (timer) clearTimeout(timer);
     };
-  }, [chat, chatId, takenByHuman]);
+  }, [chat, chatId]);
 
   // Lógica de inactividad para mostrar rating automáticamente
   // Se activa cada vez que cambia el número de mensajes
