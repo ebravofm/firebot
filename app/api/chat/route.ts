@@ -105,11 +105,13 @@ export async function POST(req: Request) {
   // Switch: si el hilo está tomado por humano, no generar respuesta de IA
   if (chatId) {
     console.log(`[${Date.now() - startTime}ms] [API:THREAD] Checking thread status for: ${chatId}`);
+    // maybeSingle: un chatId inexistente (hilo borrado, localStorage viejo) devuelve null
+    // en vez de lanzar error. Antes .single() daba 500 en ese caso.
     const { data: thread, error: threadError } = await supabase
       .from("threads")
       .select("id, taken_by_user_system, workspace_id")
       .eq("id", chatId)
-      .single();
+      .maybeSingle();
 
     if (threadError) {
       console.error(`[${Date.now() - startTime}ms] [API:ERROR] Thread fetch error:`, threadError);
@@ -119,11 +121,12 @@ export async function POST(req: Request) {
       });
     }
 
-    // El hilo debe pertenecer al workspace del token: si no, el token de un widget no
-    // puede operar sobre conversaciones de otro workspace.
-    if (thread?.workspace_id !== claims.workspace_id) {
-      console.warn(`[${Date.now() - startTime}ms] [API:AUTH] chatId ${chatId} (ws ${thread?.workspace_id}) no pertenece al workspace del token (${claims.workspace_id})`);
-      return new Response(JSON.stringify({ error: 'No autorizado' }), {
+    // El hilo debe existir y pertenecer al workspace del token: así un token de widget no
+    // opera sobre conversaciones de otro workspace, y un chatId inválido se rechaza limpio
+    // (403) en vez de reventar. El cliente, ante 403, arranca un chat nuevo.
+    if (!thread || thread.workspace_id !== claims.workspace_id) {
+      console.warn(`[${Date.now() - startTime}ms] [API:AUTH] chatId ${chatId} (ws ${thread?.workspace_id ?? 'inexistente'}) no válido para el workspace del token (${claims.workspace_id})`);
+      return new Response(JSON.stringify({ error: 'Conversación no válida', code: 'INVALID_CHAT' }), {
         status: 403,
         headers: { "Content-Type": "application/json" },
       });
