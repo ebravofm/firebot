@@ -18,7 +18,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { useChat } from '@ai-sdk/react'
-import type { UIMessage } from "ai";
+import { DefaultChatTransport, type UIMessage } from "ai";
 import { useAISDKRuntime } from "@assistant-ui/react-ai-sdk";
 import { useChatbotConfig } from "@/lib/chatbot-config-context";
 import { useEffect, useRef, useState } from "react";
@@ -50,9 +50,18 @@ export const Assistant = ({
   // Obtener JWT una vez al montar el componente
   // const jwtToken = storage.getJWT();
   
-  const chat = useChat({ 
-    id: chatId, 
+  const chat = useChat({
+    id: chatId,
     messages: initialMessages,
+    // El token del widget viaja en cada petición a /api/chat, que ahora lo exige y verifica
+    // antes de invocar la IA. Sin esto el endpoint quedaba abierto a cualquiera.
+    transport: new DefaultChatTransport({
+      api: "/api/chat",
+      headers: (): Record<string, string> => {
+        const jwt = storage.getJWT();
+        return jwt ? { Authorization: `Bearer ${jwt}` } : {};
+      },
+    }),
   });
   const runtime = useAISDKRuntime(chat);
   const router = useRouter();

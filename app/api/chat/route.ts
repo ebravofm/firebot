@@ -2,16 +2,21 @@ import { UIMessage, createIdGenerator } from "ai";
 import { saveChat } from "@/lib/chat-store";
 import { supabaseServer as supabase } from "@/lib/supabase-server";
 import { streamReactAgent } from "@/lib/agents/react-agent";
+import { verifyWidgetToken } from "@/lib/verify-widget-token";
 
 // Configurar runtime para Vercel (Node.js tiene mejor soporte para tareas en segundo plano)
 export const runtime = 'nodejs';
 export const maxDuration = 60; // 60 segundos máximo para funciones Pro
 
 // ── Rate limiter en memoria (ventana deslizante) ──────────────────────────────
-// Límite: MAX_REQUESTS_PER_WINDOW peticiones por chatId en WINDOW_MS milisegundos.
-// Protege contra bucles accidentales del cliente y abuso de la API de IA.
+// Se limita por WORKSPACE del token verificado, no por el chatId del body: el chatId lo
+// controla el cliente y bastaba con variarlo (u omitirlo) para saltar el límite. La clave
+// por workspace acota el gasto de IA aun con un token filtrado.
+//
+// En memoria: firebot corre en un único contenedor en Railway, así que el Map basta. Con
+// múltiples instancias habría que mover esto a un store compartido (Redis/DB).
 const WINDOW_MS = 60_000;   // 1 minuto
-const MAX_REQUESTS_PER_WINDOW = 20; // 20 mensajes/min por conversación
+const MAX_REQUESTS_PER_WINDOW = 40; // 40 mensajes/min por workspace
 
 const rateLimitMap = new Map<string, number[]>();
 
@@ -72,9 +77,22 @@ export async function POST(req: Request) {
   const chatId: string | undefined = body.chatId ?? body.id;
   const jwtToken: string | undefined = body.jwtToken ?? req.headers.get('authorization')?.replace('Bearer ', '');
 
-  // ── Rate limiting: 20 mensajes/min por conversación ───────────────────────
-  if (chatId && isRateLimited(chatId)) {
-    console.warn(`[${timestamp}] [API:RATE_LIMIT] chatId ${chatId} exceeded rate limit`);
+  // ── Autenticación: exigir un token de widget válido ───────────────────────
+  // Antes este endpoint generaba respuestas de IA sin ninguna credencial: cualquiera
+  // podía quemar los tokens de OpenAI con un curl. Ahora se verifica la firma del token
+  // widget (HS256, emitido por el backend) antes de invocar el modelo.
+  const claims = verifyWidgetToken(jwtToken);
+  if (!claims) {
+    console.warn(`[${timestamp}] [API:AUTH] token de widget ausente o inválido — rechazado`);
+    return new Response(
+      JSON.stringify({ error: 'No autorizado' }),
+      { status: 401, headers: { 'Content-Type': 'application/json' } },
+    );
+  }
+
+  // ── Rate limiting por workspace del token ─────────────────────────────────
+  if (isRateLimited(`ws:${claims.workspace_id}`)) {
+    console.warn(`[${timestamp}] [API:RATE_LIMIT] workspace ${claims.workspace_id} superó el límite`);
     return new Response(
       JSON.stringify({ error: 'Demasiadas solicitudes. Espera un momento antes de continuar.' }),
       { status: 429, headers: { 'Content-Type': 'application/json', 'Retry-After': '60' } },
@@ -82,20 +100,14 @@ export async function POST(req: Request) {
   }
   // ─────────────────────────────────────────────────────────────────────────
 
-  console.log(`[${timestamp}] [API:INPUT] chatId: ${chatId}, messages count: ${messages.length}`);
-  console.log(`[${timestamp}] [API:INPUT] JWT token provided: ${jwtToken ? 'YES' : 'NO'}`);
-  console.log(`[${timestamp}] [API:INPUT] messages:`, messages.map(m => ({ 
-    id: m.id, 
-    role: m.role, 
-    content: m.parts?.find(p => p.type === 'text')?.text?.substring(0, 50) 
-  })));
-  
+  console.log(`[${timestamp}] [API:INPUT] chatId: ${chatId}, messages count: ${messages.length}, workspace: ${claims.workspace_id}`);
+
   // Switch: si el hilo está tomado por humano, no generar respuesta de IA
   if (chatId) {
     console.log(`[${Date.now() - startTime}ms] [API:THREAD] Checking thread status for: ${chatId}`);
     const { data: thread, error: threadError } = await supabase
       .from("threads")
-      .select("id, taken_by_user_system")
+      .select("id, taken_by_user_system, workspace_id")
       .eq("id", chatId)
       .single();
 
@@ -107,9 +119,19 @@ export async function POST(req: Request) {
       });
     }
 
-    console.log(`[${Date.now() - startTime}ms] [API:THREAD] Thread data:`, { 
-      id: thread?.id, 
-      taken_by_user_system: thread?.taken_by_user_system 
+    // El hilo debe pertenecer al workspace del token: si no, el token de un widget no
+    // puede operar sobre conversaciones de otro workspace.
+    if (thread?.workspace_id !== claims.workspace_id) {
+      console.warn(`[${Date.now() - startTime}ms] [API:AUTH] chatId ${chatId} (ws ${thread?.workspace_id}) no pertenece al workspace del token (${claims.workspace_id})`);
+      return new Response(JSON.stringify({ error: 'No autorizado' }), {
+        status: 403,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    console.log(`[${Date.now() - startTime}ms] [API:THREAD] Thread data:`, {
+      id: thread?.id,
+      taken_by_user_system: thread?.taken_by_user_system
     });
 
     const isTakenByHuman = thread?.taken_by_user_system != null;
