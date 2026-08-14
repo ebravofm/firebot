@@ -246,16 +246,28 @@ export async function getChatbotConfig(jwtToken?: string | null): Promise<Chatbo
     const url = `${ENV_CONFIG.BACKEND_URL}/chatbot-config/${chatbotId}`;
     console.log('getChatbotConfig: llamando a:', url);
 
+    // Origen de incrustación para el gate de dominio del backend (P2), obligatorio en
+    // tokens widget. En el navegador es window.location.origin (el iframe de firebot). En
+    // el servidor (p. ej. /api/chat/create) no hay window: se usa el propio origen de
+    // firebot, que es un origen de plataforma siempre permitido. Sin esto el backend
+    // rechaza el token widget y la creación de chat falla.
+    const embeddingOrigin =
+      typeof window !== 'undefined' && window.location?.origin
+        ? window.location.origin
+        : (() => {
+            try {
+              return new URL(ENV_CONFIG.WIDGET_URL).origin;
+            } catch {
+              return '';
+            }
+          })();
+
     const response = await fetch(url, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${token}`,
-        // Usar window.location.origin para indicar desde qué dominio se carga el widget.
-        // document.referrer indica la página anterior, no el sitio actual donde está incrustado.
-        ...(typeof window !== 'undefined' && window.location?.origin
-          ? { "X-Embedding-Origin": window.location.origin }
-          : {}),
+        ...(embeddingOrigin ? { "X-Embedding-Origin": embeddingOrigin } : {}),
       },
     });
 
