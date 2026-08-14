@@ -1,6 +1,6 @@
 import { UIMessage, createIdGenerator } from "ai";
 import { saveChat } from "@/lib/chat-store";
-import { supabase } from "@/lib/supabase-client";
+import { supabaseServer as supabase } from "@/lib/supabase-server";
 import { streamReactAgent } from "@/lib/agents/react-agent";
 
 // Configurar runtime para Vercel (Node.js tiene mejor soporte para tareas en segundo plano)

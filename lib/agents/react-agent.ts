@@ -11,11 +11,13 @@ import { createGeneratePaymentLinkTool } from "@/lib/agents/tools/generate-payme
 import { createCheckPaymentStatusTool } from "@/lib/agents/tools/check-payment-status";
 import {
   getChatbotConfig,
-  getChatbotConfigFromThread,
-  getCollectionsByWorkspace,
   type ChatbotConfig,
   type ThreadChannel,
 } from "@/lib/config";
+import {
+  getChatbotConfigFromThread,
+  getCollectionsByWorkspace,
+} from "@/lib/config-server";
 import { ENV_CONFIG } from "@/lib/env";
 import {
   buildCatalogInstructions,

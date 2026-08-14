@@ -1,5 +1,5 @@
 import { type UIMessage } from "ai";
-import { supabase } from "../lib/supabase-client";
+import { supabaseServer as supabase } from "../lib/supabase-server";
 import { getChatbotConfig } from "../lib/config";
 import { storage } from "./storage";
 import { ENV_CONFIG } from "./env";
@@ -23,9 +23,10 @@ function normalizeMessageSignature(message: UIMessage): string {
   return `${role}|${text}`;
 }
 
-export async function createChat(): Promise<string> {
-  // Obtener la configuración del chatbot para obtener el workspace_id
-  const chatbotConfig = await getChatbotConfig();
+export async function createChat(jwt: string): Promise<string> {
+  // Corre en el servidor (ruta /api/chat/create). El JWT del widget llega explícito
+  // porque ya no hay storage del navegador aquí.
+  const chatbotConfig = await getChatbotConfig(jwt);
 
   if (!chatbotConfig) {
     throw new Error("No se pudo obtener la configuración del chatbot");
@@ -36,14 +37,13 @@ export async function createChat(): Promise<string> {
   // crear el thread. Solo aplica al plan Free (30 conversaciones/mes).
   // El token JWT del widget autentica esta llamada.
   try {
-    const token = typeof window !== "undefined" ? storage.getJWT() : null;
-    if (token) {
+    if (jwt) {
       const usageUrl = `${ENV_CONFIG.BACKEND_URL}/billing/workspace/${chatbotConfig.workspace_id}/usage`;
       const usageRes = await fetch(usageUrl, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${jwt}`,
         },
       });
       if (usageRes.ok) {
@@ -87,9 +87,8 @@ export async function createChat(): Promise<string> {
     throw new Error(error.message);
   }
 
-  // Guardar el thread_id en localStorage
-  storage.setThreadId(data.id);
-
+  // El thread_id se guarda en localStorage del lado cliente, tras recibir la respuesta
+  // de /api/chat/create (aquí ya no hay navegador).
   return data.id;
 }
 
