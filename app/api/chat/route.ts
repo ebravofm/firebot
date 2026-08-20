@@ -3,6 +3,7 @@ import { saveChat } from "@/lib/chat-store";
 import { supabaseServer as supabase } from "@/lib/supabase-server";
 import { streamReactAgent } from "@/lib/agents/react-agent";
 import { verifyWidgetToken } from "@/lib/verify-widget-token";
+import { ENV_CONFIG } from "@/lib/env";
 
 // Configurar runtime para Vercel (Node.js tiene mejor soporte para tareas en segundo plano)
 export const runtime = 'nodejs';
@@ -97,6 +98,38 @@ export async function POST(req: Request) {
       JSON.stringify({ error: 'Demasiadas solicitudes. Espera un momento antes de continuar.' }),
       { status: 429, headers: { 'Content-Type': 'application/json', 'Retry-After': '60' } },
     );
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
+  // ── Cuota de mensajes del widget, configurable por plan ───────────────────
+  // El rate limit de arriba frena ráfagas; esto aplica la cuota de negocio del plan.
+  // Se consulta al backend porque LimitsService vive en Nest y esta ruta corre en Next.
+  // Ante un fallo de red se permite: un problema de infraestructura no debe cortarle el
+  // servicio a un cliente que paga.
+  try {
+    const quotaUrl = `${ENV_CONFIG.BACKEND_URL}/billing/workspace/${claims.workspace_id}/usage?key=messages_widget_month`;
+    const quotaRes = await fetch(quotaUrl, {
+      headers: { Authorization: `Bearer ${jwtToken}`, 'Content-Type': 'application/json' },
+    });
+    if (quotaRes.ok) {
+      const quota = (await quotaRes.json()) as { allowed: boolean; used: number; limit: number | null };
+      if (!quota.allowed) {
+        console.warn(
+          `[${timestamp}] [API:QUOTA] workspace ${claims.workspace_id} alcanzó su cuota de mensajes del widget (${quota.used}/${quota.limit})`,
+        );
+        return new Response(
+          JSON.stringify({
+            error: 'Alcanzaste el límite de mensajes de tu plan.',
+            code: 'MESSAGE_LIMIT_REACHED',
+            used: quota.used,
+            limit: quota.limit,
+          }),
+          { status: 429, headers: { 'Content-Type': 'application/json' } },
+        );
+      }
+    }
+  } catch (e) {
+    console.warn(`[${timestamp}] [API:QUOTA] no se pudo verificar la cuota, se permite:`, e);
   }
   // ─────────────────────────────────────────────────────────────────────────
 
