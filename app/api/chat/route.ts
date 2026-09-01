@@ -2,6 +2,10 @@ import { UIMessage, createIdGenerator } from "ai";
 import { saveChat } from "@/lib/chat-store";
 import { supabaseServer as supabase } from "@/lib/supabase-server";
 import { streamReactAgent } from "@/lib/agents/react-agent";
+import {
+  pideAtencionHumana,
+  textoDelUltimoMensajeDelUsuario,
+} from "@/lib/human-request-detector";
 import { verifyWidgetToken } from "@/lib/verify-widget-token";
 import { ENV_CONFIG } from "@/lib/env";
 
@@ -142,7 +146,7 @@ export async function POST(req: Request) {
     // en vez de lanzar error. Antes .single() daba 500 en ese caso.
     const { data: thread, error: threadError } = await supabase
       .from("threads")
-      .select("id, taken_by_user_system, workspace_id")
+      .select("id, taken_by_user_system, workspace_id, closed_at")
       .eq("id", chatId)
       .maybeSingle();
 
@@ -170,6 +174,18 @@ export async function POST(req: Request) {
       taken_by_user_system: thread?.taken_by_user_system
     });
 
+    // Un mensaje nuevo en un hilo cerrado lo reabre. En el widget no debería pasar (ahí el
+    // compositor se reemplaza por el botón de conversación nueva), pero por WhatsApp o
+    // Instagram el cliente escribe cuando quiere: dejar el hilo marcado como cerrado mientras
+    // sigue llegando conversación mostraría un estado falso en el panel.
+    if (thread?.closed_at) {
+      console.log(`[${Date.now() - startTime}ms] [API:HANDOFF] Mensaje nuevo en hilo cerrado ${chatId}: se reabre`);
+      await supabase
+        .from("threads")
+        .update({ closed_at: null, closed_by: null })
+        .eq("id", chatId);
+    }
+
     const isTakenByHuman = thread?.taken_by_user_system != null;
     if (isTakenByHuman) {
       console.log(`[${Date.now() - startTime}ms] [API:HUMAN] Thread ${chatId} is taken by human. Saving messages synchronously.`);
@@ -193,6 +209,27 @@ export async function POST(req: Request) {
     }
   }
   
+  // Red de seguridad del traspaso a humano: el modelo tiene la herramienta 'request_human' y
+  // normalmente la llama, pero si falla en llamarla perdemos a alguien que pidió ayuda de
+  // verdad. Ante una petición explícita se avisa igual, sin esperar la respuesta: el backend
+  // ignora el segundo aviso del mismo hilo, así que los dos caminos no duplican nada.
+  if (chatId && jwtToken) {
+    const ultimoDelVisitante = textoDelUltimoMensajeDelUsuario(
+      messages as Array<{ role?: string; parts?: Array<{ type?: string; text?: string }> }>,
+    );
+    if (pideAtencionHumana(ultimoDelVisitante)) {
+      console.log(`[${Date.now() - startTime}ms] [API:HANDOFF] Petición explícita de atención humana en ${chatId}`);
+      void fetch(`${ENV_CONFIG.BACKEND_URL}/push/human-requested`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${jwtToken}`,
+        },
+        body: JSON.stringify({ threadId: chatId, motivo: ultimoDelVisitante.slice(0, 200) }),
+      }).catch((e) => console.error("[API:HANDOFF] No se pudo avisar al equipo:", e));
+    }
+  }
+
   console.log(`[${Date.now() - startTime}ms] [API:AGENT] Starting streamReactAgent...`);
   const agentParams = { messages, jwtToken, chatId };
   const result = await streamReactAgent({ 

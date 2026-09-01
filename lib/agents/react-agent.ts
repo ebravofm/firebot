@@ -9,6 +9,7 @@ import {
 import { createRagSearchTool } from "@/lib/agents/tools/rag-search";
 import { createGeneratePaymentLinkTool } from "@/lib/agents/tools/generate-payment-link";
 import { createCheckPaymentStatusTool } from "@/lib/agents/tools/check-payment-status";
+import { createRequestHumanTool } from "@/lib/agents/tools/request-human";
 import {
   getChatbotConfig,
   type ChatbotConfig,
@@ -29,6 +30,7 @@ import {
 import { buildContactInstructions } from "@/lib/contact-instructions";
 import { buildFormattingInstructions } from "@/lib/formatting-instructions";
 import { buildToneInstructions } from "@/lib/tone-instructions";
+import { buildHandoffInstructions } from "@/lib/handoff-instructions";
 
 const PRODUCTS_COLLECTION_KIND = "products";
 
@@ -60,6 +62,7 @@ interface PreparedAgentRun {
   ragSearch: ReturnType<typeof createRagSearchTool>;
   generatePaymentLink: ReturnType<typeof createGeneratePaymentLinkTool> | null;
   checkPaymentStatus: ReturnType<typeof createCheckPaymentStatusTool> | null;
+  requestHuman: ReturnType<typeof createRequestHumanTool>;
   modelMessages: Awaited<ReturnType<typeof convertToModelMessages>>;
   telemetry: {
     isEnabled: boolean;
@@ -104,6 +107,13 @@ async function prepareAgentRun({
         contactEmail: chatbotConfig?.contact_email,
       })
     : null;
+
+  // Siempre disponible: pedir hablar con una persona no depende de ningún plan ni de que el
+  // negocio tenga ventas activas.
+  const requestHuman = createRequestHumanTool({
+    threadId: chatId,
+    jwtToken: jwtToken ?? undefined,
+  });
 
   const salesEnabled = salesConfig.salesEnabled === true;
 
@@ -177,7 +187,8 @@ RESTRICCIONES DE COMPORTAMIENTO (NO NEGOCIABLES):
     catalogInstructions +
     paymentLinkInstructions +
     formattingInstructions +
-    scopeGuardrail;
+    scopeGuardrail +
+    buildHandoffInstructions();
   const modelId = chatbotConfig?.openai_model ?? ENV_CONFIG.OPENAI_MODEL ?? "gpt-4o-mini";
   const modelMessages = await convertToModelMessages(messagesForModelConversion(messages));
 
@@ -188,6 +199,7 @@ RESTRICCIONES DE COMPORTAMIENTO (NO NEGOCIABLES):
     ragSearch,
     generatePaymentLink,
     checkPaymentStatus,
+    requestHuman,
     modelMessages,
     telemetry: {
       isEnabled: true,
@@ -204,6 +216,7 @@ RESTRICCIONES DE COMPORTAMIENTO (NO NEGOCIABLES):
 function agentTools(prepared: PreparedAgentRun) {
   const tools: Record<string, unknown> = {
     rag_search: prepared.ragSearch,
+    request_human: prepared.requestHuman,
   };
   if (prepared.generatePaymentLink) {
     tools.generate_payment_link = prepared.generatePaymentLink;
@@ -213,6 +226,7 @@ function agentTools(prepared: PreparedAgentRun) {
   }
   return tools as {
     rag_search: PreparedAgentRun["ragSearch"];
+    request_human: PreparedAgentRun["requestHuman"];
     generate_payment_link?: NonNullable<PreparedAgentRun["generatePaymentLink"]>;
     check_payment_status?: NonNullable<PreparedAgentRun["checkPaymentStatus"]>;
   };

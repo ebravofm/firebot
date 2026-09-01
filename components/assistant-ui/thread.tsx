@@ -7,7 +7,7 @@ import {
   ErrorPrimitive,
   useMessage,
 } from "@assistant-ui/react";
-import type { FC } from "react";
+import type { FC, ReactNode } from "react";
 import {
   ArrowDownIcon,
   ArrowUpIcon,
@@ -36,7 +36,13 @@ export const Thread: FC<{
   welcomeSubtitle: string;
   welcomeSuggestions: Array<{ label: string; title: string; action: string }>;
   showPoweredBy?: boolean;
-}> = ({ welcomeTitle, welcomeSubtitle, welcomeSuggestions, showPoweredBy = true }) => {
+  /**
+   * Reemplaza el compositor. Se usa cuando la conversación está cerrada: el historial sigue
+   * a la vista, pero en lugar del cuadro de texto va el aviso de finalizada con el botón
+   * para empezar una nueva.
+   */
+  footerOverride?: ReactNode;
+}> = ({ welcomeTitle, welcomeSubtitle, welcomeSuggestions, showPoweredBy = true, footerOverride }) => {
   return (
     <ThreadPrimitive.Root
       // aui-thread-root
@@ -64,7 +70,9 @@ export const Thread: FC<{
         </ThreadPrimitive.If>
       </ThreadPrimitive.Viewport>
 
-      <Composer welcomeSuggestions={welcomeSuggestions} showPoweredBy={showPoweredBy} />
+      {footerOverride ?? (
+        <Composer welcomeSuggestions={welcomeSuggestions} showPoweredBy={showPoweredBy} />
+      )}
     </ThreadPrimitive.Root>
   );
 };

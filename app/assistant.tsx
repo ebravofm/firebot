@@ -25,6 +25,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DropdownMenuOptions } from "@/components/DropdownMenuOptions";
 import { InfoModal } from "@/components/InfoModal";
+import { ConversationClosed, WaitingForHuman } from "@/components/ConversationClosed";
 import { ChatHeader } from "@/components/ChatHeader";
 import { X } from "lucide-react";
 import { storage } from "@/lib/storage";
@@ -66,6 +67,10 @@ export const Assistant = ({
   const runtime = useAISDKRuntime(chat);
   const router = useRouter();
   const [takenByHuman, setTakenByHuman] = useState<boolean>(false);
+  // El visitante pidió una persona y todavía nadie toma la conversación.
+  const [esperandoHumano, setEsperandoHumano] = useState<boolean>(false);
+  // Fecha de cierre. Null mientras siga abierta.
+  const [cerradaEn, setCerradaEn] = useState<string | null>(null);
 
   // Estado: tamaño de fuente (zoom)
   const [fontSize, setFontSize] = useState<number>(storage.getFontSize());
@@ -173,6 +178,13 @@ export const Assistant = ({
 
   // Reiniciar chat: eliminar solo thread_id y navegar a /chat para crear nuevo thread
   const handleResetChat = async () => {
+    // Se limpia el estado del traspaso antes de navegar: si no, el pie de "conversación
+    // finalizada" queda pintado sobre la conversación nueva hasta el siguiente polling.
+    setCerradaEn(null);
+    setEsperandoHumano(false);
+    setTakenByHuman(false);
+    setShowRating(false);
+    setRatingSubmitted(false);
     storage.removeThreadId();
     router.push("/chat");
   };
@@ -282,6 +294,8 @@ export const Assistant = ({
 
     type ThreadStatus = {
       taken_by_user_system: number | null;
+      human_requested_at: string | null;
+      closed_at: string | null;
       messages: Array<{ id: string; role: string; parts: unknown; content?: string; created_at?: string }>;
     };
 
@@ -313,6 +327,8 @@ export const Assistant = ({
           const data = (await res.json()) as ThreadStatus;
           const humanActive = data.taken_by_user_system != null;
           setTakenByHuman(humanActive);
+          setEsperandoHumano(data.human_requested_at != null && !humanActive);
+          setCerradaEn(data.closed_at ?? null);
           for (const row of data.messages) {
             if (row.created_at && (!lastSeenAt || row.created_at > lastSeenAt)) {
               lastSeenAt = row.created_at;
@@ -354,6 +370,15 @@ export const Assistant = ({
 
     return () => clearTimeout(timer);
   }, [messageCount, ratingConfig, ratingSubmitted, showRating]);
+
+  // Cerrar la conversación es el momento natural para pedir la valoración: la atención
+  // terminó y el visitante todavía está mirando. Si el negocio no la tiene activa, o ya
+  // valoró, no se muestra nada y el pie de "finalizada" queda solo.
+  useEffect(() => {
+    if (!cerradaEn) return;
+    if (!ratingConfig?.enabled || ratingSubmitted) return;
+    setShowRating(true);
+  }, [cerradaEn, ratingConfig, ratingSubmitted]);
 
   // Handler para enviar la valoración
   const handleRatingSubmit = async (rating: number, comment: string) => {
@@ -449,12 +474,26 @@ export const Assistant = ({
               </div>
             )}
 
+            {/* Mientras la petición de humano está en cola. Desaparece sola cuando alguien
+                la toma o cuando se cierra la conversación. */}
+            {esperandoHumano && !cerradaEn && (
+              <WaitingForHuman primaryColor={wa?.primary_color ?? undefined} />
+            )}
+
             <div className="flex-1 overflow-hidden relative">
               <Thread
                 welcomeTitle={welcomeTitle}
                 welcomeSubtitle={welcomeSubtitle}
                 welcomeSuggestions={welcomeSuggestions}
                 showPoweredBy={showPoweredBy}
+                footerOverride={
+                  cerradaEn ? (
+                    <ConversationClosed
+                      onNewConversation={() => void handleResetChat()}
+                      primaryColor={wa?.primary_color ?? undefined}
+                    />
+                  ) : undefined
+                }
               />
               {/* Rating overlay - se muestra sobre el chat */}
               {showRating && (

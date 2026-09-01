@@ -12,6 +12,9 @@ export const runtime = "nodejs";
  *
  * Devuelve:
  *  - taken_by_user_system: si un humano tomó el chat (para pausar la IA en el cliente)
+ *  - human_requested_at: el visitante pidió hablar con una persona y todavía nadie la toma
+ *  - closed_at: la conversación se cerró; el widget muestra el aviso de finalizada, deja el
+ *    historial a la vista y ofrece empezar una nueva
  *  - messages: los mensajes del hilo creados después de `after` (ISO), para pintar en vivo
  *    lo que responde el agente humano. Vacío si no hay novedades.
  *
@@ -30,7 +33,7 @@ export async function GET(request: NextRequest) {
   try {
     const { data: thread, error: threadError } = await supabaseServer
       .from("threads")
-      .select("taken_by_user_system")
+      .select("taken_by_user_system, human_requested_at, closed_at")
       .eq("id", chatId)
       .single();
 
@@ -53,6 +56,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         taken_by_user_system: thread.taken_by_user_system ?? null,
+        human_requested_at: thread.human_requested_at ?? null,
+        closed_at: thread.closed_at ?? null,
         messages: messages ?? [],
       },
       // Sin caché: es estado en vivo.
