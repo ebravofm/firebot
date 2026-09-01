@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createChat } from "@/lib/chat-store";
+import { ENV_CONFIG } from "@/lib/env";
 
 export const runtime = "nodejs";
 
@@ -20,6 +21,19 @@ export async function POST(request: NextRequest) {
 
   try {
     const chatId = await createChat(jwt);
+
+    // Avisa al panel de que hay una conversación nueva. Va sin await y con su propio catch:
+    // el visitante no debe esperar por esto, y si el aviso falla el backend igual lo detecta
+    // en su repaso periódico. Se reenvía el mismo JWT del widget, que ya viene acotado al
+    // workspace del chatbot.
+    void fetch(`${ENV_CONFIG.BACKEND_URL}/push/thread-opened`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${jwt}` },
+      body: JSON.stringify({ threadId: chatId }),
+    }).catch((err) => {
+      console.warn("[api/chat/create] no se pudo avisar del hilo nuevo:", err);
+    });
+
     return NextResponse.json({ chatId });
   } catch (error) {
     // Límite del plan Free: el cliente lo traduce a la pantalla /error-limit.
