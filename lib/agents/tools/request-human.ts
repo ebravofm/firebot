@@ -22,11 +22,13 @@ export function createRequestHumanTool({
   return tool({
     description:
       "Escala la conversación a una persona del equipo. " +
-      "Úsala cuando el visitante pida hablar con un humano, un asesor o soporte, " +
-      "cuando muestre frustración con las respuestas automáticas, " +
-      "o cuando su caso necesite a alguien con acceso a información o decisiones que tú no tienes " +
-      "(reclamos, cobros, datos de su cuenta). " +
-      "No la uses para preguntas que puedas responder tú mismo con la información disponible.",
+      "Úsala cuando el visitante pida hablar con un humano, un asesor o soporte; " +
+      "cuando su caso necesite a alguien con acceso o decisiones que tú no tienes " +
+      "(reclamos, cobros, datos de su cuenta); " +
+      "o cuando ya intentaste resolver su problema y te dice que no funcionó. " +
+      "NO la uses en el primer mensaje solo porque el visitante describe un problema: " +
+      "eso es pedir ayuda, no pedir un humano. Busca en tu información y responde primero. " +
+      "Escalar de más satura al equipo y hace que dejen de mirar los avisos.",
     inputSchema: z.object({
       motivo: z
         .string()

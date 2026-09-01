@@ -81,7 +81,9 @@ export const Assistant = ({
   // Estado: rating/valoración
   const [showRating, setShowRating] = useState(false);
   const [ratingConfig, setRatingConfig] = useState<{ enabled: boolean; autoCloseTime: number } | null>(null);
-  const [ratingSubmitted, setRatingSubmitted] = useState(false);
+  // La valoración ya se resolvió en esta conversación: se envió o el visitante la descartó.
+  // Evita volver a ofrecérsela y separa "la respondió" de "no quiso responderla".
+  const [valoracionResuelta, setValoracionResuelta] = useState(false);
 
   // Detectar si viene del widget externo (source=widget) vs plataforma (preview/test)
   const [isExternalWidget, setIsExternalWidget] = useState(false);
@@ -184,7 +186,7 @@ export const Assistant = ({
     setEsperandoHumano(false);
     setTakenByHuman(false);
     setShowRating(false);
-    setRatingSubmitted(false);
+    setValoracionResuelta(false);
     storage.removeThreadId();
     router.push("/chat");
   };
@@ -356,7 +358,7 @@ export const Assistant = ({
   // Se activa cada vez que cambia el número de mensajes
   const messageCount = chat.messages?.length || 0;
   useEffect(() => {
-    if (!ratingConfig?.enabled || ratingSubmitted || showRating) return;
+    if (!ratingConfig?.enabled || valoracionResuelta || showRating) return;
     // Solo activar timer si hay al menos 2 mensajes (usuario + asistente)
     if (messageCount < 2) return;
 
@@ -369,23 +371,23 @@ export const Assistant = ({
     }, delayMs);
 
     return () => clearTimeout(timer);
-  }, [messageCount, ratingConfig, ratingSubmitted, showRating]);
+  }, [messageCount, ratingConfig, valoracionResuelta, showRating]);
 
   // Cerrar la conversación es el momento natural para pedir la valoración: la atención
   // terminó y el visitante todavía está mirando. Si el negocio no la tiene activa, o ya
   // valoró, no se muestra nada y el pie de "finalizada" queda solo.
   useEffect(() => {
     if (!cerradaEn) return;
-    if (!ratingConfig?.enabled || ratingSubmitted) return;
+    if (!ratingConfig?.enabled || valoracionResuelta) return;
     setShowRating(true);
-  }, [cerradaEn, ratingConfig, ratingSubmitted]);
+  }, [cerradaEn, ratingConfig, valoracionResuelta]);
 
   // Handler para enviar la valoración
   const handleRatingSubmit = async (rating: number, comment: string) => {
     // Solo guardar en BD si viene del widget externo (no desde la plataforma/test)
     if (!isExternalWidget) {
       console.log('[Assistant] Rating desde plataforma (test) - no se guarda en BD');
-      setRatingSubmitted(true);
+      setValoracionResuelta(true);
       return;
     }
 
@@ -406,7 +408,7 @@ export const Assistant = ({
           user_session_id: typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('scrivot-session-id') : null,
         }),
       });
-      setRatingSubmitted(true);
+      setValoracionResuelta(true);
       console.log('[Assistant] Rating submitted successfully (widget externo)');
     } catch (err) {
       console.error('[Assistant] Error submitting rating:', err);
@@ -416,13 +418,12 @@ export const Assistant = ({
 
   // Al cerrar el rating → reiniciar el chat de forma instantánea
   const handleRatingClose = () => {
-    // Limpiar mensajes inmediatamente para que no se vea el chat anterior
-    chat.setMessages([]);
+    // Cerrar la valoración no arranca una conversación nueva. Antes sí lo hacía, y eso le
+    // borraba el historial al visitante sin que lo hubiera pedido: si la conversación terminó
+    // verá el aviso de finalizada con el botón para empezar de nuevo, y si no terminó puede
+    // seguir escribiendo donde estaba. Empezar de cero es una decisión suya, no del temporizador.
     setShowRating(false);
-    setRatingSubmitted(false);
-    // Navegar a nuevo chat
-    storage.removeThreadId();
-    router.replace("/chat");
+    setValoracionResuelta(true);
   };
 
   return (
