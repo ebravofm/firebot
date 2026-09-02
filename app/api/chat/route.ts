@@ -209,6 +209,23 @@ export async function POST(req: Request) {
     }
   }
   
+  // Aviso de conversación nueva.
+  //
+  // Se dispara aquí y no al crear el hilo: crear el hilo solo significa que alguien abrió el
+  // widget, y avisar de eso llena la campana de gente que pasó de largo. El backend solo
+  // alerta la primera vez (notified_at), así que llamar en cada mensaje no duplica nada, y de
+  // paso el aviso puede decir qué preguntaron.
+  if (chatId && jwtToken) {
+    const primerTexto = textoDelUltimoMensajeDelUsuario(
+      messages as Array<{ role?: string; parts?: Array<{ type?: string; text?: string }> }>,
+    );
+    void fetch(`${ENV_CONFIG.BACKEND_URL}/push/thread-opened`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${jwtToken}` },
+      body: JSON.stringify({ threadId: chatId, texto: primerTexto.slice(0, 200) }),
+    }).catch((err) => console.warn("[API:AVISO] no se pudo avisar del hilo nuevo:", err));
+  }
+
   // Red de seguridad del traspaso a humano: el modelo tiene la herramienta 'request_human' y
   // normalmente la llama, pero si falla en llamarla perdemos a alguien que pidió ayuda de
   // verdad. Ante una petición explícita se avisa igual, sin esperar la respuesta: el backend
