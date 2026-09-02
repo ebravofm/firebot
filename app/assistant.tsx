@@ -354,24 +354,16 @@ export const Assistant = ({
     };
   }, [chat, chatId]);
 
-  // Lógica de inactividad para mostrar rating automáticamente
-  // Se activa cada vez que cambia el número de mensajes
-  const messageCount = chat.messages?.length || 0;
-  useEffect(() => {
-    if (!ratingConfig?.enabled || valoracionResuelta || showRating) return;
-    // Solo activar timer si hay al menos 2 mensajes (usuario + asistente)
-    if (messageCount < 2) return;
-
-    const delayMs = (ratingConfig.autoCloseTime || 1) * 60 * 1000;
-    console.log(`[Assistant] Rating timer started: ${delayMs / 1000}s after ${messageCount} messages`);
-
-    const timer = setTimeout(() => {
-      console.log('[Assistant] Rating timer fired! Showing overlay');
-      setShowRating(true);
-    }, delayMs);
-
-    return () => clearTimeout(timer);
-  }, [messageCount, ratingConfig, valoracionResuelta, showRating]);
+  // La valoración NO se ofrece por temporizador mientras la conversación sigue viva.
+  //
+  // Antes aparecía tras unos minutos de silencio y se pintaba ENCIMA del chat: si el visitante
+  // estaba escribiendo, le tapaba el cuadro de texto y el botón de enviar. Con el valor por
+  // defecto de medio minuto pasaba casi siempre, y lo que el visitante vivía era que el chat
+  // se le bloqueó a mitad de camino.
+  //
+  // Ahora se pide cuando la conversación termina de verdad —la cierra alguien del equipo, o el
+  // servidor la finaliza tras el silencio configurado—, que es cuando valorar tiene sentido y
+  // cuando ya no hay nada que tapar. Ese es el efecto de más abajo, el que mira `cerradaEn`.
 
   // Cerrar la conversación es el momento natural para pedir la valoración: la atención
   // terminó y el visitante todavía está mirando. Si el negocio no la tiene activa, o ya
