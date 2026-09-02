@@ -286,6 +286,31 @@ export async function POST(req: Request) {
       
       if (chatId) {
         console.log(`[${onFinishTimestamp}] [API:ONFINISH] chatId exists, preparing to save...`);
+
+        // Espejo a Slack del último intercambio.
+        //
+        // Va aquí porque es el único punto donde están las dos mitades: lo que preguntó el
+        // visitante y lo que acabó respondiendo el asistente. El backend solo escribe si esa
+        // conversación ya tiene hilo en Slack, así que en cuentas sin la integración esto no
+        // cuesta más que una llamada que devuelve cero.
+        if (jwtToken) {
+          const ultimos = messages.slice(-2).map((m) => ({
+            rol: m.role,
+            texto: (m.parts ?? [])
+              .filter((p: any) => p?.type === "text" && typeof p.text === "string")
+              .map((p: any) => p.text as string)
+              .join(" ")
+              .trim(),
+          })).filter((m) => m.texto.length > 0);
+
+          if (ultimos.length > 0) {
+            void fetch(`${ENV_CONFIG.BACKEND_URL}/push/mirror`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${jwtToken}` },
+              body: JSON.stringify({ threadId: chatId, mensajes: ultimos }),
+            }).catch((err) => console.warn("[API:ESPEJO] no se pudo reflejar en Slack:", err));
+          }
+        }
         
         // Crear una promesa para el guardado con manejo de errores mejorado
         console.log(`[${onFinishTimestamp}] [API:ONFINISH] Creating savePromise...`);
