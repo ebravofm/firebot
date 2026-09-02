@@ -296,9 +296,9 @@ export async function POST(req: Request) {
         if (jwtToken) {
           const ultimos = messages.slice(-2).map((m) => ({
             rol: m.role,
-            texto: (m.parts ?? [])
-              .filter((p: any) => p?.type === "text" && typeof p.text === "string")
-              .map((p: any) => p.text as string)
+            texto: ((m.parts ?? []) as Array<{ type?: string; text?: string }>)
+              .filter((p) => p?.type === "text" && typeof p.text === "string")
+              .map((p) => p.text as string)
               .join(" ")
               .trim(),
           })).filter((m) => m.texto.length > 0);
