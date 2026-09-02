@@ -25,7 +25,8 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DropdownMenuOptions } from "@/components/DropdownMenuOptions";
 import { InfoModal } from "@/components/InfoModal";
-import { ConversationClosed, WaitingForHuman } from "@/components/ConversationClosed";
+import { ConversationClosed, ModoBanda, type ModoAtencion } from "@/components/ConversationClosed";
+import { HumanAuthorsProvider } from "@/components/HumanAuthors";
 import { ChatHeader } from "@/components/ChatHeader";
 import { X } from "lucide-react";
 import { storage } from "@/lib/storage";
@@ -71,6 +72,10 @@ export const Assistant = ({
   const [esperandoHumano, setEsperandoHumano] = useState<boolean>(false);
   // Fecha de cierre. Null mientras siga abierta.
   const [cerradaEn, setCerradaEn] = useState<string | null>(null);
+  // Nombre de quien atiende, para la franja de estado.
+  const [nombreAgente, setNombreAgente] = useState<string | null>(null);
+  // Nombre de quien escribió cada mensaje humano, por id de mensaje.
+  const [autoresHumanos, setAutoresHumanos] = useState<Record<string, string>>({});
 
   // Estado: tamaño de fuente (zoom)
   const [fontSize, setFontSize] = useState<number>(storage.getFontSize());
@@ -298,11 +303,33 @@ export const Assistant = ({
       taken_by_user_system: number | null;
       human_requested_at: string | null;
       closed_at: string | null;
+      taken_by_name: string | null;
       messages: Array<{ id: string; role: string; parts: unknown; content?: string; created_at?: string }>;
+    };
+
+    /** Nombre dentro de providerMetadata.human, si el mensaje lo escribió una persona. */
+    const nombreHumano = (parts: unknown[]): string | null => {
+      if (!Array.isArray(parts)) return null;
+      for (const p of parts) {
+        if (!p || typeof p !== 'object') continue;
+        const humano = (p as { providerMetadata?: { human?: { name?: unknown } } })
+          .providerMetadata?.human;
+        if (humano && typeof humano.name === 'string' && humano.name.trim()) {
+          return humano.name.trim();
+        }
+      }
+      return null;
     };
 
     const applyMessage = (row: { id: string; role: string; parts: unknown; content?: string }, humanActive: boolean) => {
       const parts = coerceParts(row.parts ?? row.content);
+
+      // Se registra antes de pintar: así el mensaje ya aparece firmado con el nombre de quien
+      // lo escribió y no cambia de autor un instante después.
+      const autor = nombreHumano(parts);
+      if (autor) {
+        setAutoresHumanos((prev) => (prev[row.id] === autor ? prev : { ...prev, [row.id]: autor }));
+      }
       // Mismo filtro que antes: con humano activo solo se pintan los mensajes marcados
       // como humanos; con IA activa el propio stream ya trae los del asistente.
       if (row.role === 'assistant' && humanActive && !isHumanProvider(parts)) return;
@@ -331,6 +358,7 @@ export const Assistant = ({
           setTakenByHuman(humanActive);
           setEsperandoHumano(data.human_requested_at != null && !humanActive);
           setCerradaEn(data.closed_at ?? null);
+          setNombreAgente(data.taken_by_name ?? null);
           for (const row of data.messages) {
             if (row.created_at && (!lastSeenAt || row.created_at > lastSeenAt)) {
               lastSeenAt = row.created_at;
@@ -420,6 +448,7 @@ export const Assistant = ({
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
+      <HumanAuthorsProvider value={autoresHumanos}>
       <SidebarProvider>
         <div className="flex h-dvh w-full pr-0.5">
           {ui.show_sidebar && <AppSidebar />}
@@ -467,10 +496,19 @@ export const Assistant = ({
               </div>
             )}
 
-            {/* Mientras la petición de humano está en cola. Desaparece sola cuando alguien
-                la toma o cuando se cierra la conversación. */}
-            {esperandoHumano && !cerradaEn && (
-              <WaitingForHuman primaryColor={wa?.primary_color ?? undefined} />
+            {/* Quién atiende ahora mismo. Con la conversación cerrada no se muestra: ya lo
+                dice el pie de finalizada, y dos avisos del mismo hecho sobran. */}
+            {!cerradaEn && (
+              <ModoBanda
+                modo={
+                  (takenByHuman
+                    ? { tipo: "humano", nombre: nombreAgente }
+                    : esperandoHumano
+                      ? { tipo: "esperando" }
+                      : { tipo: "bot" }) as ModoAtencion
+                }
+                primaryColor={wa?.primary_color ?? undefined}
+              />
             )}
 
             <div className="flex-1 overflow-hidden relative">
@@ -515,6 +553,7 @@ export const Assistant = ({
         {/* Modal de información */}
         <InfoModal isOpen={isInfoModalOpen} onClose={handleCloseInfoModal} />
       </SidebarProvider>
+      </HumanAuthorsProvider>
     </AssistantRuntimeProvider>
   );
 };

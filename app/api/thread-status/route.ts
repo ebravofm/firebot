@@ -41,6 +41,21 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "thread no encontrado" }, { status: 404 });
     }
 
+    // Nombre de quien atiende, para que el widget pueda decir "te atiende Emilio" en vez de
+    // un id. Se pide solo cuando hay alguien: en el caso normal no cuesta nada.
+    let takenByName: string | null = null;
+    if (thread.taken_by_user_system != null) {
+      const { data: agente } = await supabaseServer
+        .from("users")
+        .select("first_name, last_name, email")
+        .eq("id", thread.taken_by_user_system)
+        .maybeSingle();
+      if (agente) {
+        const completo = [agente.first_name, agente.last_name].filter(Boolean).join(" ").trim();
+        takenByName = completo || agente.email || null;
+      }
+    }
+
     let messagesQuery = supabaseServer
       .from("messages")
       .select("id, role, parts, content, created_at")
@@ -56,6 +71,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         taken_by_user_system: thread.taken_by_user_system ?? null,
+        taken_by_name: takenByName,
         human_requested_at: thread.human_requested_at ?? null,
         closed_at: thread.closed_at ?? null,
         messages: messages ?? [],

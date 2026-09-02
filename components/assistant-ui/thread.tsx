@@ -8,6 +8,7 @@ import {
   useMessage,
 } from "@assistant-ui/react";
 import type { FC, ReactNode } from "react";
+import { useHumanAuthor } from "@/components/HumanAuthors";
 import {
   ArrowDownIcon,
   ArrowUpIcon,
@@ -266,6 +267,9 @@ const MessageError: FC = () => {
 const AssistantMessage: FC = () => {
   const { ui, config } = useChatbotConfig();
   const message = useMessage();
+  // Si lo escribió alguien del equipo, el mensaje va firmado con su nombre. Es la señal que
+  // de verdad se lee: más que cualquier cartel, ver un nombre propio dice que hay una persona.
+  const autorHumano = useHumanAuthor((message as { id?: string }).id);
   const isInProgress = message.isLast && message.status?.type === "running";
   const hasContent = (message.content ?? []).some(
     (c: { type: string; text?: string }) => c.type === "text" && (c.text?.length ?? 0) > 0
@@ -306,7 +310,12 @@ const AssistantMessage: FC = () => {
         {/* aui-assistant-message-content */}
         <div className="col-span-2 col-start-2 row-start-1 ml-4">
           <div className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
-            {config?.name?.trim() || config?.welcome_message?.split('\n')[0]?.trim() || ui.header_title}
+            {autorHumano ?? (config?.name?.trim() || config?.welcome_message?.split('\n')[0]?.trim() || ui.header_title)}
+            {autorHumano && (
+              <span className="ml-1.5 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
+                persona
+              </span>
+            )}
           </div>
           <div
             className={cn(
