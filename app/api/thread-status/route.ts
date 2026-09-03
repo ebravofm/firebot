@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
   try {
     const { data: thread, error: threadError } = await supabaseServer
       .from("threads")
-      .select("taken_by_user_system, human_requested_at, closed_at")
+      .select("taken_by_user_system, human_requested_at, taken_at, closed_at")
       .eq("id", chatId)
       .single();
 
@@ -73,6 +73,9 @@ export async function GET(request: NextRequest) {
         taken_by_user_system: thread.taken_by_user_system ?? null,
         taken_by_name: takenByName,
         human_requested_at: thread.human_requested_at ?? null,
+        // Sin esto el widget no puede saber si la escalada ya fue atendida, y seguía
+        // mostrando "avisamos al equipo" con el bot respondiendo.
+        taken_at: thread.taken_at ?? null,
         closed_at: thread.closed_at ?? null,
         messages: messages ?? [],
       },

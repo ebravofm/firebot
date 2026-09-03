@@ -302,6 +302,7 @@ export const Assistant = ({
     type ThreadStatus = {
       taken_by_user_system: number | null;
       human_requested_at: string | null;
+      taken_at: string | null;
       closed_at: string | null;
       taken_by_name: string | null;
       messages: Array<{ id: string; role: string; parts: unknown; content?: string; created_at?: string }>;
@@ -356,7 +357,12 @@ export const Assistant = ({
           const data = (await res.json()) as ThreadStatus;
           const humanActive = data.taken_by_user_system != null;
           setTakenByHuman(humanActive);
-          setEsperandoHumano(data.human_requested_at != null && !humanActive);
+          // Espera solo si pidió una persona y todavía NO la atendieron. Mirar únicamente
+          // si hay alguien tomándola ahora dejaba el cartel "avisamos al equipo" puesto
+          // después de que la persona contestara y devolviera la conversación al bot.
+          setEsperandoHumano(
+            data.human_requested_at != null && data.taken_at == null && !humanActive,
+          );
           setCerradaEn(data.closed_at ?? null);
           setNombreAgente(data.taken_by_name ?? null);
           for (const row of data.messages) {
