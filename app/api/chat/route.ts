@@ -200,6 +200,24 @@ export async function POST(req: Request) {
         }
       }
 
+      // El mensaje del visitante también va al hilo de Slack.
+      //
+      // Este camino retorna antes de generar respuesta, así que nunca pasaba por el espejo de
+      // más abajo: con una persona atendiendo desde Slack —justo cuando más importa— veía
+      // salir su propio mensaje y después silencio, mientras el visitante seguía escribiendo.
+      if (jwtToken) {
+        const ultimo = textoDelUltimoMensajeDelUsuario(
+          messages as Array<{ role?: string; parts?: Array<{ type?: string; text?: string }> }>,
+        );
+        if (ultimo) {
+          void fetch(`${ENV_CONFIG.BACKEND_URL}/push/mirror`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${jwtToken}` },
+            body: JSON.stringify({ threadId: chatId, mensajes: [{ rol: "user", texto: ultimo }] }),
+          }).catch((err) => console.warn("[API:ESPEJO] no se pudo reflejar en Slack:", err));
+        }
+      }
+
       console.log(`[${Date.now() - startTime}ms] [API:HUMAN] Returning HUMAN_TAKEN response`);
       // Responder OK sin stream para que el cliente no intente renderizar IA
       return new Response(JSON.stringify({ status: "HUMAN_TAKEN" }), {
