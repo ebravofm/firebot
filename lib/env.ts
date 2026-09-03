@@ -15,10 +15,11 @@ export const ENV_CONFIG = {
   NEXT_PUBLIC_SHOW_RAG_RESULTS: process.env.NEXT_PUBLIC_SHOW_RAG_RESULTS === 'true' || false,
   NEXT_PUBLIC_ASSISTANT_ICON_URL: process.env.NEXT_PUBLIC_ASSISTANT_ICON_URL || '',
   OPENAI_MODEL: process.env.OPENAI_MODEL || 'gpt-4o-mini-2024-07-18',
-  // Langfuse configuration
-  LANGFUSE_PUBLIC_KEY: process.env.LANGFUSE_PUBLIC_KEY || '',
-  LANGFUSE_SECRET_KEY: process.env.LANGFUSE_SECRET_KEY || '',
-  LANGFUSE_HOST: process.env.LANGFUSE_HOST || 'https://cloud.langfuse.com',
+  // Langfuse NO se configura desde aquí. El SDK lee sus propias variables del entorno
+  // (LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY y LANGFUSE_BASE_URL) al arrancar, en
+  // instrumentation.ts. Antes había tres constantes aquí que nadie leía, y una de ellas
+  // nombraba LANGFUSE_HOST: quien la viera pondría esa variable en Railway y no pasaría nada,
+  // porque el SDK v4 usa LANGFUSE_BASE_URL.
   /** Token compartido con scrivot-backend para POST /api/chat/respond (WhatsApp 3b) */
   FIREBOT_INTERNAL_TOKEN: process.env.FIREBOT_INTERNAL_TOKEN || '',
   /** Log warning si generateText supera este umbral (ms) */

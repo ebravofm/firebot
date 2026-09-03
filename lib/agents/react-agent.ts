@@ -30,6 +30,7 @@ import {
 import { buildContactInstructions } from "@/lib/contact-instructions";
 import { buildFormattingInstructions } from "@/lib/formatting-instructions";
 import { buildToneInstructions } from "@/lib/tone-instructions";
+import { propagateAttributes } from "@langfuse/tracing";
 import { buildHandoffInstructions } from "@/lib/handoff-instructions";
 
 const PRODUCTS_COLLECTION_KIND = "products";
@@ -235,20 +236,51 @@ function agentTools(prepared: PreparedAgentRun) {
   };
 }
 
+/**
+ * Atributos que Langfuse guarda a nivel de TRAZA, no de observación.
+ *
+ * La telemetría del AI SDK ya adjunta chatId/workspaceId, pero queda colgando de cada
+ * observación: la traza en sí llegaba sin nombre y con metadata vacía. En la práctica eso
+ * significaba una lista de trazas anónimas y no poder filtrar "cuánto me cuesta este cliente",
+ * que es medio motivo para tener esto.
+ *
+ * `sessionId` es el que más cambia las cosas: con el id de la conversación, Langfuse agrupa
+ * todos los turnos en una sesión y se puede abrir y leer entera, en vez de ver cada turno como
+ * una traza suelta.
+ *
+ * Los valores han de ser cadenas de <=200 caracteres; los que no lo sean se descartan con un
+ * aviso, así que workspaceId va convertido a texto.
+ */
+function atributosDeTraza(chatId: string | undefined, workspaceId: number | null | undefined) {
+  return {
+    traceName: "conversacion",
+    ...(chatId ? { sessionId: chatId } : {}),
+    ...(workspaceId != null ? { metadata: { workspaceId: String(workspaceId) } } : {}),
+  };
+}
+
 export async function streamReactAgent(params: ReactAgentParams) {
   const prepared = await prepareAgentRun({
     ...params,
     telemetryFunctionId: "stream-react-agent",
   });
 
-  return streamText({
-    model: openai(prepared.modelId),
-    messages: prepared.modelMessages,
-    tools: agentTools(prepared),
-    stopWhen: stepCountIs(10),
-    system: prepared.systemPrompt,
-    experimental_telemetry: prepared.telemetry,
-  });
+  // Se envuelve la LLAMADA, no el consumo del stream: propagateAttributes devuelve lo que
+  // devuelva la función, así que el stream sale intacto y los spans que crea el AI SDK nacen
+  // dentro del contexto. Envolver el consumo obligaría a tocar el ciclo de vida del span, que
+  // en streaming es justo donde se rompen estas cosas.
+  return propagateAttributes(
+    atributosDeTraza(params.chatId, prepared.chatbotConfig?.workspace_id),
+    () =>
+      streamText({
+        model: openai(prepared.modelId),
+        messages: prepared.modelMessages,
+        tools: agentTools(prepared),
+        stopWhen: stepCountIs(10),
+        system: prepared.systemPrompt,
+        experimental_telemetry: prepared.telemetry,
+      }),
+  );
 }
 
 export interface GenerateReactAgentResult {
@@ -272,14 +304,18 @@ export async function generateReactAgent(
     telemetryFunctionId: "generate-react-agent",
   });
 
-  const result = await generateText({
-    model: openai(prepared.modelId),
-    messages: prepared.modelMessages,
-    tools: agentTools(prepared),
-    stopWhen: stepCountIs(10),
-    system: prepared.systemPrompt,
-    experimental_telemetry: prepared.telemetry,
-  });
+  const result = await propagateAttributes(
+    atributosDeTraza(params.chatId, prepared.chatbotConfig?.workspace_id),
+    () =>
+      generateText({
+        model: openai(prepared.modelId),
+        messages: prepared.modelMessages,
+        tools: agentTools(prepared),
+        stopWhen: stepCountIs(10),
+        system: prepared.systemPrompt,
+        experimental_telemetry: prepared.telemetry,
+      }),
+  );
 
   return {
     text: result.text.trim(),
